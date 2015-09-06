@@ -82,56 +82,61 @@ class WikipediaDumpFile():
 
         return pages
 
-outputDirectoryPath = '../data/Wikipedia-pages'
 
-if os.path.exists(outputDirectoryPath):
-    shutil.rmtree(outputDirectoryPath, ignore_errors=True)
-    log.info('Old output directory has been removed')
+def processWikipediaDumps(filterText=True, compress=True):
+    outputDirectoryPath = '../data/Wikipedia-pages'
 
-os.mkdir(outputDirectoryPath)
-os.chown(outputDirectoryPath, 1000, 1000)
-log.info('Output directory has been created')
+    if os.path.exists(outputDirectoryPath):
+        shutil.rmtree(outputDirectoryPath, ignore_errors=True)
+        log.info('Old output directory has been removed')
 
-inputDirectoryPath = '../data/Wikipedia'
-wikipediaFilesMask = inputDirectoryPath + '/*-wiki-en_*.txt.gz'
+    os.mkdir(outputDirectoryPath)
+    os.chown(outputDirectoryPath, 1000, 1000)
+    log.info('Output directory has been created')
 
-wikipediaFilePaths = glob.glob(wikipediaFilesMask)[:10]
-wikipediaFilesCount = len(wikipediaFilePaths)
-wikipediaFileIndex = 0
-pagesCounter = 0
-elapsed = 0.
+    inputDirectoryPath = '../data/Wikipedia'
+    wikipediaFilesMask = inputDirectoryPath + '/*-wiki-en_*.txt.gz'
 
-for wikipediaFilePath in sorted(wikipediaFilePaths):
-    startTime = time.time()
-    wikipediaFileName = os.path.basename(wikipediaFilePath)
-    wikipediaDumpName = wikipediaFileName.split('.')[0]
+    filePaths = glob.glob(wikipediaFilesMask)[:10]
+    filesCount = len(filePaths)
+    fileIndex = 0
+    pagesCounter = 0
+    elapsed = 0.
 
-    wikipediaPages = WikipediaDumpFile.load(wikipediaFilePath, False)
+    for filePath in sorted(filePaths):
+        startTime = time.time()
+        fileName = os.path.basename(filePath)
+        dumpName = fileName.split('.')[0]
 
-    pagesCounter += len(wikipediaPages)
+        pages = WikipediaDumpFile.load(filePath, filterText)
 
-    wikipediaPagesDirectory = os.path.join(outputDirectoryPath, wikipediaDumpName)
-    os.mkdir(wikipediaPagesDirectory)
-    os.chown(wikipediaPagesDirectory, 1000, 1000)
+        pagesCounter += len(pages)
 
-    for wikipediaPage in wikipediaPages:
-        wikipediaPageName = re.sub('[^a-zA-Z0-9\s\(\)]', '', wikipediaPage.title).strip()
-        wikipediaPageName = '{0}.txt'.format(wikipediaPageName)
-        wikipediaPagePath = os.path.join(wikipediaPagesDirectory, wikipediaPageName)
+        pagesDirectoryPath = os.path.join(outputDirectoryPath, dumpName)
+        os.mkdir(pagesDirectoryPath)
+        os.chown(pagesDirectoryPath, 1000, 1000)
 
-        wikipediaPage.dump(wikipediaPagePath, False)
+        for page in pages:
+            pageName = re.sub('[^a-zA-Z0-9\s\(\)]', '', page.title).strip()
+            pageName = '{0}.txt'.format(pageName)
+            pagePath = os.path.join(pagesDirectoryPath, pageName)
 
-    endTime = time.time()
-    elapsed += (endTime - startTime)
-    averageElapsed = elapsed / (wikipediaFileIndex + 1)
+            page.dump(pagePath, compress)
 
-    message = 'Pages: {0}. File: {1} ({2}). Average: {3:.2f} seconds per file.'.format(pagesCounter, wikipediaDumpName, len(wikipediaPages), averageElapsed)
-    log.progress(wikipediaFileIndex + 1, wikipediaFilesCount, message)
-    wikipediaFileIndex += 1
+        endTime = time.time()
+        elapsed += (endTime - startTime)
+        averageElapsed = elapsed / (fileIndex + 1)
 
-log.newline()
-log.info('Processing finished.')
-log.info('Elapsed {0:.2f} seconds.'.format(elapsed))
-log.info('Average {0:.2f} seconds per file.'.format(elapsed/wikipediaFileIndex))
-log.info('Wikipedia dump files processed: {0}/{1}.'.format(wikipediaFileIndex, wikipediaFilesCount))
-log.info('Wikipedia text pages created: {0}.'.format(pagesCounter, wikipediaFilesCount))
+        message = 'Pages: {0}. File: {1} ({2}). Average: {3:.2f} seconds per file.'.format(pagesCounter, dumpName, len(pages), averageElapsed)
+        log.progress(fileIndex + 1, filesCount, message)
+        fileIndex += 1
+
+    log.newline()
+    log.info('Processing finished.')
+    log.info('Elapsed {0:.2f} seconds.'.format(elapsed))
+    log.info('Average {0:.2f} seconds per file.'.format(elapsed/fileIndex))
+    log.info('Wikipedia dump files processed: {0}/{1}.'.format(fileIndex, filesCount))
+    log.info('Wikipedia text pages created: {0}.'.format(pagesCounter, filesCount))
+
+if __name__ == '__main__':
+    processWikipediaDumps(True, True)
