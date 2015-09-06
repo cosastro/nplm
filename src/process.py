@@ -115,7 +115,7 @@ for wikipediaFilePath in sorted(wikipediaFilePaths):
     os.chown(wikipediaPagesDirectory, 1000, 1000)
 
     for wikipediaPage in wikipediaPages:
-        wikipediaPageName = re.sub('[^a-zA-Z0-9\s]', '', wikipediaPage.title).strip()
+        wikipediaPageName = re.sub('[^a-zA-Z0-9\s\(\)]', '', wikipediaPage.title).strip()
         wikipediaPageName = '{0}.txt'.format(wikipediaPageName)
         wikipediaPagePath = os.path.join(wikipediaPagesDirectory, wikipediaPageName)
 
