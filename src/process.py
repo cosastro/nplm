@@ -23,55 +23,61 @@ class WikipediaPage():
                          and not text.startswith('#redirect')
 
     @staticmethod
-    def create(title, text):
+    def create(title, text, filter=True):
         headings = [title] + re.findall('^=+\s*([^=]+)\s*=+$', text, flags=re.MULTILINE)
         paragraphs = re.split('^=+\s*[^=]+\s*=+$', text, flags=re.MULTILINE)
 
-        text = ''
+        if filter:
+            text = ''
 
-        for heading, paragraph in zip(headings, paragraphs):
-            if heading.lower() not in WikipediaPage.restrictedHeaders:
-                text += paragraph.lower()
+            for heading, paragraph in zip(headings, paragraphs):
+                if heading.lower() not in WikipediaPage.restrictedHeaders:
+                    text += paragraph.lower()
 
-        text = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', 'URL', text)
-        text = re.sub('\([^\)]+\)', '', text)
-        text = re.sub('(:[^\.]\.)', '', text)
-        text = re.sub('[,":_\*]', ' ', text)
-        text = re.sub('!', '.', text)
-        text = re.sub('\?', '.', text)
-        text = re.sub('\s(\.{4,})\s', ' ', text)
-        text = re.sub('\s(\.{3})\s', '.', text)
-        text = re.sub('\s(\.{2})\s', ' ', text)
-        text = re.sub('[^a-z]+([0-9\-]+)[^a-z]+', ' NUMBER ', text)
-        text = re.sub('\s([^a-zA-Z0-9\.\-\s]+)\s', ' SYMBOL ', text)
-        text = re.sub('\s([bcdefghjklmnopqrstuvwxyz])\s', ' SYMBOL ', text)
+            text = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', 'URL', text)
+            text = re.sub('\([^\)]+\)', '', text)
+            text = re.sub('(:[^\.]\.)', '', text)
+            text = re.sub('[,":_\*]', ' ', text)
+            text = re.sub('!', '.', text)
+            text = re.sub('\?', '.', text)
+            text = re.sub('\s(\.{4,})\s', ' ', text)
+            text = re.sub('\s(\.{3})\s', '.', text)
+            text = re.sub('\s(\.{2})\s', ' ', text)
+            text = re.sub('<[^>]+>', '', text)
+            text = re.sub('[^a-z]+([0-9\-]+)[^a-z]+', ' NUMBER ', text)
+            text = re.sub('\s([^a-zA-Z0-9\.\-\s]+)\s', ' SYMBOL ', text)
+            text = re.sub('\s([bcdefghjklmnopqrstuvwxyz])\s', ' SYMBOL ', text)
 
-        sentences = re.split('[(\n{2,})\.;]', text)
-        sentences = [re.sub('[\s]+', ' ', sentence).strip() for sentence in sentences]
-        sentences = [sentence for sentence in sentences
-                     if len(sentence.split(' ')) > 5 \
-                     and sentence.count('NUMBER') < 3]
+            sentences = re.split('[(\n{2,})\.;]', text)
+            sentences = [re.sub('[\s]+', ' ', sentence).strip() for sentence in sentences]
+            sentences = [sentence for sentence in sentences
+                         if len(sentence.split(' ')) > 5 \
+                         and sentence.count('NUMBER') < 3]
 
-        text = '. '.join(sentences)
+            text = '. '.join(sentences)
 
         return WikipediaPage(title, text)
     
-    def dump(self, filePath):
-        with gzip.open(filePath, 'wb+') as file:
-            file.write(self.title + '\n')
-            file.write(self.text)
+    def dump(self, filePath, compress=True):
+        if compress:
+            filePath = filePath + '.gz'
+            with gzip.open(filePath, 'wb+') as file:
+                file.write(self.text)
+        else:
+            with open(filePath, 'wb+') as file:
+                file.write(self.text)
 
 
 class WikipediaDumpFile():
     @staticmethod
-    def load(filePath):
+    def load(filePath, filter=True):
         with gzip.open(filePath, 'rb') as testFile:
             text = testFile.read()
 
         titles = [link.strip() for link in re.findall('^\[\[(?P<title>[^\]]+)\]\]\s?$', text, flags=re.MULTILINE)]
         texts = [text.strip() for text in re.split('^\[\[[^\]]+\]\]\s?$', text, flags=re.MULTILINE) if text != '']
 
-        pages = [WikipediaPage.create(link, text) for link, text in zip(titles, texts)]
+        pages = [WikipediaPage.create(link, text, filter) for link, text in zip(titles, texts)]
         pages = [page for page in pages if page.isArticle]
 
         return pages
@@ -89,7 +95,7 @@ log.info('Output directory has been created')
 inputDirectoryPath = '../data/Wikipedia'
 wikipediaFilesMask = inputDirectoryPath + '/*-wiki-en_*.txt.gz'
 
-wikipediaFilePaths = glob.glob(wikipediaFilesMask)
+wikipediaFilePaths = glob.glob(wikipediaFilesMask)[:10]
 wikipediaFilesCount = len(wikipediaFilePaths)
 wikipediaFileIndex = 0
 pagesCounter = 0
@@ -100,7 +106,7 @@ for wikipediaFilePath in sorted(wikipediaFilePaths):
     wikipediaFileName = os.path.basename(wikipediaFilePath)
     wikipediaDumpName = wikipediaFileName.split('.')[0]
 
-    wikipediaPages = WikipediaDumpFile.load(wikipediaFilePath)
+    wikipediaPages = WikipediaDumpFile.load(wikipediaFilePath, False)
 
     pagesCounter += len(wikipediaPages)
 
@@ -109,12 +115,11 @@ for wikipediaFilePath in sorted(wikipediaFilePaths):
     os.chown(wikipediaPagesDirectory, 1000, 1000)
 
     for wikipediaPage in wikipediaPages:
-        # wikipediaPageName = '{0}.txt.gz'.format(uuid.uuid4())
         wikipediaPageName = re.sub('[^a-zA-Z0-9\s]', '', wikipediaPage.title).strip()
-        wikipediaPageName = '{0}.txt.gz'.format(wikipediaPageName)
+        wikipediaPageName = '{0}.txt'.format(wikipediaPageName)
         wikipediaPagePath = os.path.join(wikipediaPagesDirectory, wikipediaPageName)
 
-        wikipediaPage.dump(wikipediaPagePath)
+        wikipediaPage.dump(wikipediaPagePath, False)
 
     endTime = time.time()
     elapsed += (endTime - startTime)
