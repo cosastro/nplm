@@ -1,6 +1,18 @@
 import struct
+import log
+import math
 
-filePath = '../data/GoogleNews-vectors/GoogleNews-vectors-negative300.bin'
+# filePath = '../data/GoogleNews-vectors/GoogleNews-vectors-negative300.bin'
+
+filePath = '../data/Text8-vectors/vectors.bin'
+
+def cosineSimilarity(vectorA, vectorB):
+    numerator = sum([a * b for a, b in zip(vectorA, vectorB)])
+    denumerator = math.sqrt(sum([a * a for a in vectorA]) * sum([b * b for b in vectorB]))
+
+    denumerator = 0.000000000001 if denumerator == 0 else denumerator
+
+    return numerator / denumerator
 
 def loadWordVectors(filePath):
     with open(filePath, 'rb') as file:
@@ -9,7 +21,10 @@ def loadWordVectors(filePath):
         vocabularySize, vectorSize = int(vocabularySize), int(vectorSize)
         vocabulary = {}
 
-        print 'Vocabulary size: {0}; vector size: {1}'.format(vocabularySize, vectorSize)
+        message = 'Vocabulary size: {0}; vector size: {1}'.format(vocabularySize, vectorSize)
+        log.info(message)
+
+        wordCounter = 0.
 
         while True:
             word = ''
@@ -20,6 +35,7 @@ def loadWordVectors(filePath):
                     return vocabulary
 
                 if char == ' ':
+                    word = word.strip()
                     break
 
                 word += char
@@ -27,6 +43,19 @@ def loadWordVectors(filePath):
             wordFeatureVector = struct.unpack('{0}f'.format(vectorSize), file.read(4 * vectorSize))
             vocabulary[word] = wordFeatureVector
 
-wordVectors = loadWordVectors(filePath)
+            wordCounter += 1
+            log.progress(wordCounter, vocabularySize)
 
-print '{0} {1}'.format(wordVectors.items()[10])
+wordVectors = loadWordVectors(filePath)
+word = 'god'
+
+distances = [[alt, cosineSimilarity(wordVectors[word], wordVectors[alt])] for alt in wordVectors.keys()]
+
+comparator = lambda a, b: cmp(a[1], b[1])
+distances.sort(cmp=comparator, reverse=True)
+closest = [d[0] for d in distances[:10]]
+
+print '{0}'.format(word)
+
+for d in distances[:10]:
+    print '{0}\t\t\t\t{1}'.format(d[0], d[1])

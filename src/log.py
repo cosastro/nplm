@@ -13,7 +13,7 @@ def newline():
     sys.stdout.write('\n')
     sys.stdout.flush()
 
-def progress(index, count, message):
+def progress(index, count, message=''):
     index = float(index)
     count = float(count)
     percentage = 100 * index / count
