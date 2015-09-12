@@ -5,16 +5,23 @@ import gzip
 import log
 
 
+class WordEmbedding():
+    def __init__(self, word, index, frequency=1):
+        self.word = word
+        self.index = index
+        self.frequency = frequency
+
+
 def processPages():
     pagesDirectoryPath = '../data/Wikipedia-pages'
 
     wikipediaFilesMask = pagesDirectoryPath + '/*/*.gz'
     pageFilePaths = glob.glob(wikipediaFilesMask)
 
-    windowSize = 4
-    contextSize = 3
+    windowSize = 100
+    contextSize = 5
     contexts = []
-    vocabulary = {}
+    vocabulary = collections.OrderedDict()
     fileIndex = 1
     filesCount = len(pageFilePaths)
 
@@ -43,31 +50,35 @@ def processPages():
                     for wordIndex in range(len(words) - contextSize + 1):
                         window = words[wordIndex: wordIndex + contextSize]
 
+                        for word in window:
+                            if word not in vocabulary:
+                                vocabulary[word] = WordEmbedding(word, len(vocabulary))
+                            else:
+                                vocabulary[word].frequency += 1
+
+                        window = map(lambda w: vocabulary[w].index, window)
                         contexts.append(window)
-
-                        if window[0] not in vocabulary:
-                            vocabulary[window[0]] = 0
-
-                        vocabulary[window[0]] += 1
 
                 words = re.split('\s+', tail.lstrip())
 
                 buffer = file.read(windowSize)
 
-                if len(words) > windowSize * 2 - 1 or buffer == '':
+                if len(words) > contextSize * 2 - 1 or buffer == '':
                     if buffer != '':
-                        tail = ' '.join(words[-windowSize:])
-                        words = words[:-windowSize]
+                        tail = ' '.join(words[-contextSize:])
+                        words = words[:-contextSize]
 
                     for wordIndex in range(len(words) - contextSize + 1):
                         window = words[wordIndex: wordIndex + contextSize]
 
+                        for word in window:
+                            if word not in vocabulary:
+                                vocabulary[word] = WordEmbedding(word, len(vocabulary))
+                            else:
+                                vocabulary[word].frequency += 1
+
+                        window = map(lambda w: vocabulary[w].index, window)
                         contexts.append(window)
-
-                        if window[0] not in vocabulary:
-                            vocabulary[window[0]] = 0
-
-                        vocabulary[window[0]] += 1
 
             message = 'Words: {0}. Contexts: {1}.'.format(len(vocabulary), len(contexts))
             log.progress(fileIndex, filesCount, message)
@@ -76,14 +87,24 @@ def processPages():
         finally:
             file.close()
 
-    vocabulary = collections.OrderedDict(sorted(vocabulary.items(), key=lambda x: x[1]))
     log.info('')
 
     return vocabulary, contexts
 
 
+def dumpVocabulary(vocabulary):
+    pass
+
+def dumpContexts(contexts):
+    pass
+
+
 if __name__ == '__main__':
     vocabulary, contexts = processPages()
+
+    dumpVocabulary(vocabulary)
+
+    dumpContexts(contexts)
 
     print 'Vocabulary size: {0}'.format(len(vocabulary))
     print 'Contexts found: {0}'.format(len(contexts))
