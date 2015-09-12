@@ -3,6 +3,7 @@ import glob
 import collections
 import gzip
 import log
+import os
 
 
 class WordEmbedding():
@@ -12,14 +13,10 @@ class WordEmbedding():
         self.frequency = frequency
 
 
-def processPages():
-    pagesDirectoryPath = '../data/Wikipedia-pages'
-
+def processPages(pagesDirectoryPath, windowSize, contextSize):
     wikipediaFilesMask = pagesDirectoryPath + '/*/*.gz'
     pageFilePaths = glob.glob(wikipediaFilesMask)
 
-    windowSize = 100
-    contextSize = 5
     contexts = []
     vocabulary = collections.OrderedDict()
     fileIndex = 1
@@ -28,7 +25,7 @@ def processPages():
     message = 'Found {0} files to process.'.format(filesCount)
     log.info(message)
 
-    for pageFilePath in pageFilePaths:
+    for pageFilePath in pageFilePaths[:10]:
         if pageFilePath.endswith('gz'):
             file = gzip.open(pageFilePath)
         else:
@@ -92,19 +89,34 @@ def processPages():
     return vocabulary, contexts
 
 
-def dumpVocabulary(vocabulary):
-    pass
+def dumpVocabulary(vocabulary, vocabularyFilePath):
+    if os.path.exists(vocabularyFilePath):
+        os.remove(vocabularyFilePath)
 
-def dumpContexts(contexts):
-    pass
+    with gzip.open(vocabularyFilePath, 'w') as file:
+        for key, value in vocabulary.items():
+            line = '{0}:{1},{2},{3}\n'.format(key, value.word, value.index, value.frequency)
+            file.write(line)
+
+def dumpContexts(contexts, contextsFilePath):
+    if os.path.exists(contextsFilePath):
+        os.remove(contextsFilePath)
+
+    with gzip.open(contextsFilePath, 'w') as file:
+        for context in contexts:
+            line = '{0}\n'.format(context)
+            file.write(line)
 
 
 if __name__ == '__main__':
-    vocabulary, contexts = processPages()
+    pagesDirectoryPath = '../data/Wikipedia-pages'
+    vocabulary, contexts = processPages(pagesDirectoryPath, windowSize=100, contextSize=5)
 
-    dumpVocabulary(vocabulary)
+    vocabularyFilePath = '../data/Wikipedia-data/vocabulary.txt.gz'
+    dumpVocabulary(vocabulary, vocabularyFilePath)
 
-    dumpContexts(contexts)
+    contextsFilePath = '../data/Wikipedia-data/context.txt.gz'
+    dumpContexts(contexts, contextsFilePath)
 
     print 'Vocabulary size: {0}'.format(len(vocabulary))
     print 'Contexts found: {0}'.format(len(contexts))
