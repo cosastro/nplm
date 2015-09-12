@@ -138,5 +138,6 @@ def processWikipediaDumps(filterText=True, compress=True):
     log.info('Wikipedia dump files processed: {0}/{1}.'.format(fileIndex, filesCount))
     log.info('Wikipedia text pages created: {0}.'.format(pagesCounter, filesCount))
 
+
 if __name__ == '__main__':
     processWikipediaDumps(True, True)

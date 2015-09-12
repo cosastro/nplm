@@ -4,11 +4,11 @@ import collections
 import gzip
 import log
 import os
+import struct
 
 
 class WordEmbedding():
-    def __init__(self, word, index, frequency=1):
-        self.word = word
+    def __init__(self, index, frequency=1):
         self.index = index
         self.frequency = frequency
 
@@ -25,7 +25,7 @@ def processPages(pagesDirectoryPath, windowSize, contextSize):
     message = 'Found {0} files to process.'.format(filesCount)
     log.info(message)
 
-    for pageFilePath in pageFilePaths[:10]:
+    for pageFilePath in pageFilePaths:
         if pageFilePath.endswith('gz'):
             file = gzip.open(pageFilePath)
         else:
@@ -49,7 +49,7 @@ def processPages(pagesDirectoryPath, windowSize, contextSize):
 
                         for word in window:
                             if word not in vocabulary:
-                                vocabulary[word] = WordEmbedding(word, len(vocabulary))
+                                vocabulary[word] = WordEmbedding(len(vocabulary))
                             else:
                                 vocabulary[word].frequency += 1
 
@@ -70,7 +70,7 @@ def processPages(pagesDirectoryPath, windowSize, contextSize):
 
                         for word in window:
                             if word not in vocabulary:
-                                vocabulary[word] = WordEmbedding(word, len(vocabulary))
+                                vocabulary[word] = WordEmbedding(len(vocabulary))
                             else:
                                 vocabulary[word].frequency += 1
 
@@ -93,30 +93,134 @@ def dumpVocabulary(vocabulary, vocabularyFilePath):
     if os.path.exists(vocabularyFilePath):
         os.remove(vocabularyFilePath)
 
+    itemsCount = len(vocabulary)
+    itemIndex = 1
+
+    message = 'Dumping vocabulary to {0}'.format(vocabularyFilePath)
+    log.info(message)
+
     with gzip.open(vocabularyFilePath, 'w') as file:
-        for key, value in vocabulary.items():
-            line = '{0}:{1},{2},{3}\n'.format(key, value.word, value.index, value.frequency)
-            file.write(line)
+        file.write(struct.pack('<i', itemsCount))
+
+        for word, value in vocabulary.items():
+            wordLength = len(word)
+            wordLength = struct.pack('<i', wordLength)
+            index = struct.pack('<i', value.index)
+            frequency = struct.pack('<i', value.frequency)
+
+            file.write(wordLength)
+            file.write(word)
+            file.write(index)
+            file.write(frequency)
+
+            file.flush()
+
+            log.progress(itemIndex, itemsCount)
+            itemIndex += 1
+
+        log.info('')
+
+
+def loadVocabulary(vocabularyFilePath):
+    vocabulary = collections.OrderedDict()
+
+    message = 'Reading vocabulary from {0}'.format(vocabularyFilePath)
+    log.info(message)
+
+    with gzip.open(vocabularyFilePath, 'rb') as file:
+        itemsCount = file.read(4)
+        itemsCount = struct.unpack('<i', itemsCount)[0]
+
+        for itemIndex in range(0, itemsCount):
+            wordLength = file.read(4)
+            wordLength = struct.unpack('<i', wordLength)[0]
+
+            word = file.read(wordLength)
+
+            index = file.read(4)
+            index = struct.unpack('<i', index)[0]
+
+            frequency = file.read(4)
+            frequency = struct.unpack('<i', frequency)[0]
+
+            vocabulary[word] = WordEmbedding(index, frequency)
+
+            log.progress(itemIndex + 1, itemsCount)
+
+        log.info('')
+
+    return vocabulary
+
 
 def dumpContexts(contexts, contextsFilePath):
     if os.path.exists(contextsFilePath):
         os.remove(contextsFilePath)
 
+    contextsCount = len(contexts)
+    contextIndex = 1
+
+    message = 'Dumping contexts to {0}'.format(contextsFilePath)
+    log.info(message)
+
     with gzip.open(contextsFilePath, 'w') as file:
+        file.write(struct.pack('<i', contextsCount))
+        file.write(struct.pack('<i', len(contexts[0])))
+
+        format = '{0}i'.format(len(contexts[0]))
+
         for context in contexts:
-            line = '{0}\n'.format(context)
-            file.write(line)
+            ctx = struct.pack(format, *context)
+
+            file.write(ctx)
+
+            log.progress(contextIndex, contextsCount)
+            contextIndex += 1
+
+
+def loadContexts(contextsFilePath):
+    message = 'Reading contexts to {0}'.format(contextsFilePath)
+    log.info(message)
+
+    contexts = []
+
+    with gzip.open(contextsFilePath, 'rb') as file:
+        contextsCount = file.read(4)
+        contextsCount = struct.unpack('<i', contextsCount)[0]
+
+        contextLength = file.read(4)
+        contextLength = struct.unpack('<i', contextLength)[0]
+
+        format = '{0}i'.format(contextLength)
+
+        for contextIndex in range(0, contextsCount):
+            context = file.read(contextLength * 4)
+            ctx = struct.unpack(format, context)[0]
+
+            contexts.append(ctx)
+
+            log.progress(contextIndex, contextsCount)
+            contextIndex += 1
+
+        log.info('')
+
+    return contexts
 
 
 if __name__ == '__main__':
-    pagesDirectoryPath = '../data/Wikipedia-pages'
-    vocabulary, contexts = processPages(pagesDirectoryPath, windowSize=100, contextSize=5)
+    #pagesDirectoryPath = '../data/Wikipedia-pages'
+    #vocabulary, contexts = processPages(pagesDirectoryPath, windowSize=100, contextSize=5)
 
-    vocabularyFilePath = '../data/Wikipedia-data/vocabulary.txt.gz'
-    dumpVocabulary(vocabulary, vocabularyFilePath)
+    vocabularyFilePath = '../data/Wikipedia-data/vocabulary.bin.gz'
+    #dumpVocabulary(vocabulary, vocabularyFilePath)
 
-    contextsFilePath = '../data/Wikipedia-data/context.txt.gz'
-    dumpContexts(contexts, contextsFilePath)
+    contextsFilePath = '../data/Wikipedia-data/context.bin.gz'
+    #dumpContexts(contexts, contextsFilePath)
 
-    print 'Vocabulary size: {0}'.format(len(vocabulary))
-    print 'Contexts found: {0}'.format(len(contexts))
+    #print 'Vocabulary size: {0}'.format(len(vocabulary))
+    #print 'Contexts found: {0}'.format(len(contexts))
+
+    vocabulary = loadVocabulary(vocabularyFilePath)
+    contexts = loadContexts(contextsFilePath)
+
+    print 'Vocabulary length: {0}'.format(len(vocabulary))
+    print 'Contexts length: {0}'.format(len(contexts))
