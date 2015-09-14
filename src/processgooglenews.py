@@ -2,10 +2,6 @@ import struct
 import log
 import math
 
-# filePath = '../data/GoogleNews-vectors/GoogleNews-vectors-negative300.bin'
-
-filePath = '../data/Text8-vectors/vectors.bin'
-
 def cosineSimilarity(vectorA, vectorB):
     numerator = sum([a * b for a, b in zip(vectorA, vectorB)])
     denumerator = math.sqrt(sum([a * a for a in vectorA]) * sum([b * b for b in vectorB]))
@@ -46,16 +42,23 @@ def loadWordVectors(filePath):
             wordCounter += 1
             log.progress(wordCounter, vocabularySize)
 
-wordVectors = loadWordVectors(filePath)
-word = 'god'
+def processGoogleNews(filePath):
+    wordVectors = loadWordVectors(filePath)
+    word = 'god'
 
-distances = [[alt, cosineSimilarity(wordVectors[word], wordVectors[alt])] for alt in wordVectors.keys()]
+    distances = [[alt, cosineSimilarity(wordVectors[word], wordVectors[alt])] for alt in wordVectors.keys()]
 
-comparator = lambda a, b: cmp(a[1], b[1])
-distances.sort(cmp=comparator, reverse=True)
-closest = [d[0] for d in distances[:10]]
+    comparator = lambda a, b: cmp(a[1], b[1])
+    distances.sort(cmp=comparator, reverse=True)
+    closest = [d[0] for d in distances[:10]]
 
-print '{0}'.format(word)
+    print '{0}'.format(word)
 
-for d in distances[:10]:
-    print '{0}\t\t\t\t{1}'.format(d[0], d[1])
+    for d in distances[:10]:
+        print '{0}\t\t\t\t{1}'.format(d[0], d[1])
+
+if __name__ == '__main__':
+    # filePath = '../data/GoogleNews-vectors/GoogleNews-vectors-negative300.bin'
+    filePath = '../data/Text8-vectors/vectors.bin'
+
+    processGoogleNews(filePath)
