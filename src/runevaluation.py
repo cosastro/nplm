@@ -96,8 +96,40 @@ def evaluateSimLex999(embeddings, filePath, base=10):
     return simLex999Metric, simLex999MetricStateOfTheArt
 
 
-def evaluateSyntacticWordRelations(embeddings, filePath):
-    return 0
+def evaluateSyntacticWordRelations(embeddings, filePath, base=10, maxWords=100):
+    with open(filePath, 'r') as file:
+        lines = file.readlines()
+        words = [tuple(line.lower().split(' ')) for line in lines if not line.startswith(':')]
+        words = [(word0.strip(), word1.strip(), word2.strip(), word3.strip()) for word0, word1, word2, word3 in words]
+
+    scores = []
+    for word0, word1, word2, word3 in words:
+        if word0 not in embeddings or word1 not in embeddings or word2 not in embeddings or word3 not in embeddings:
+            continue
+
+        word0Embedding = embeddings[word0]
+        word1Embedding = embeddings[word1]
+        word2Embedding = embeddings[word2]
+        word3Embedding = embeddings[word3]
+
+        similarity01 = cosineSimilarity(word0Embedding, word1Embedding)
+        similarity23 = cosineSimilarity(word2Embedding, word3Embedding)
+
+        score = 1
+        minSimilarityDelta = abs(similarity01 - similarity23)
+        for wordN in embeddings.keys()[:maxWords]:
+            similarity2N = cosineSimilarity(word2Embedding, embeddings[wordN])
+            similarityDelta = abs(similarity01 - similarity2N)
+
+            score = not (similarityDelta < minSimilarityDelta)
+            if not score:
+                break
+
+        scores.append(score)
+
+    syntacticWordRelationsMetric = base * sum(scores) / len(scores)
+
+    return syntacticWordRelationsMetric, base
 
 
 def evaluateSATQuestions(embeddings, filePath):
