@@ -68,8 +68,32 @@ def evaluateWordSimilarity353(embeddings, filePath, base=10):
     return wordSimilarity353Metric, wordSimilarity353MetricStateOfTheArt
 
 
-def evaluateSimLex999(embeddings, filePath):
-    return 0
+def evaluateSimLex999(embeddings, filePath, base=10):
+    data = pandas.read_csv(filePath, sep='\t')
+
+    wordPairs = []
+    targetScores = []
+    scores = []
+
+    for word1, word2, targetScore in zip(data['word1'], data['word2'], data['SimLex999']):
+        if word1 in embeddings and word2 in embeddings:
+            wordPairs.append((word1, word2))
+
+            targetScores.append(targetScore)
+
+            word1Embedding = embeddings[word1]
+            word2Embedding = embeddings[word2]
+
+            score = cosineSimilarity(word1Embedding, word2Embedding)
+            scores.append(score)
+
+    pearson, pearsonDeviation = scipy.stats.pearsonr(scores, targetScores)
+    spearman, spearmanDeviation = scipy.stats.spearmanr(scores, targetScores)
+
+    simLex999Metric = numpy.mean([pearson, spearman]) * base
+    simLex999MetricStateOfTheArt = 0.642 * base
+
+    return simLex999Metric, simLex999MetricStateOfTheArt
 
 
 def evaluateSyntacticWordRelations(embeddings, filePath):
@@ -92,7 +116,7 @@ if __name__ == '__main__':
     wordSim353Metric, wordSim353StateOfTheArt = evaluateWordSimilarity353(embeddings, wordSimilarity353FilePath)
 
     simLex999FilePath = '../data/SimLex-999/SimLex-999.txt'
-    simLex999Metric = evaluateSimLex999(embeddings, simLex999FilePath)
+    simLex999Metric, simLex999MetricStateOfTheArt = evaluateSimLex999(embeddings, simLex999FilePath)
 
     syntacticWordRelationsFilePath = '../data/Syntactic-Word-Relations/questions-words.txt'
     syntacticWordRelationsMetric = evaluateSyntacticWordRelations(embeddings, syntacticWordRelationsFilePath)
@@ -102,6 +126,6 @@ if __name__ == '__main__':
 
     log.info('Rubenstein-Goodenough: {0:.2f}/10. State of the art: {1:.2f}/10'.format(rgMetric, rgStateOfTheArt))
     log.info('WordSimilarity-353: {0:.2f}/10. State of the art: {1:.2f}/10'.format(wordSim353Metric, wordSim353StateOfTheArt))
-    log.info('SimLex-999: {0}/10'.format(simLex999Metric))
+    log.info('SimLex-999: {0:.2f}/10. State of the art: {1:.2f}/10'.format(simLex999Metric, simLex999MetricStateOfTheArt))
     log.info('Syntactic word relations: {0}/10'.format(syntacticWordRelationsMetric))
     log.info('SAT Questions: {0}/10'.format(satQuestionsMetric))
