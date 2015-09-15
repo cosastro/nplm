@@ -2,6 +2,7 @@ from processgooglenews import *
 import scipy.stats
 import numpy
 import pandas
+import re
 
 
 def loadEmbeddings(embeddingsFilePath, binary=True):
@@ -96,7 +97,7 @@ def evaluateSimLex999(embeddings, filePath, base=10):
     return simLex999Metric, simLex999MetricStateOfTheArt
 
 
-def evaluateSyntacticWordRelations(embeddings, filePath, base=10, maxWords=100):
+def evaluateSyntacticWordRelations(embeddings, filePath, base=10, maxWords=5):
     with open(filePath, 'r') as file:
         lines = file.readlines()
         words = [tuple(line.lower().split(' ')) for line in lines if not line.startswith(':')]
@@ -132,8 +133,52 @@ def evaluateSyntacticWordRelations(embeddings, filePath, base=10, maxWords=100):
     return syntacticWordRelationsMetric, base
 
 
-def evaluateSATQuestions(embeddings, filePath):
-    return 0
+def evaluateSATQuestions(embeddings, filePath, base=10):
+    maxLineLength = 50
+    aCode = ord('a')
+
+    scores = []
+    with open(filePath) as file:
+        line = file.readline()
+        while line != '':
+            if len(line) < maxLineLength:
+                match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]\:[nvar]', line)
+                if match:
+                    stemWord0, stemWord1 = match.group('word0'), match.group('word1')
+                    validSample = stemWord0 in embeddings and stemWord1 in embeddings
+
+                    if validSample:
+                        stemWord0Embedding, stemWord10Embedding = embeddings[stemWord0], embeddings[stemWord1]
+                        stemSimilarity = cosineSimilarity(stemWord0Embedding, stemWord10Embedding)
+
+                    choiceSimilarityDeltas = []
+                    line = file.readline()
+                    match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]\:[nvar]', line)
+                    while match:
+                        choiceWord0, choiceWord1 = match.group('word0'), match.group('word1')
+                        validSample = validSample and choiceWord0 in embeddings and choiceWord1 in embeddings
+
+                        if validSample:
+                            choiceWord0Embedding, choiceWord1Embedding = embeddings[choiceWord0], embeddings[choiceWord1]
+                            choiceSimilarity = cosineSimilarity(choiceWord0Embedding, choiceWord1Embedding)
+
+                            choiceSimilarityDelta = abs(stemSimilarity - choiceSimilarity)
+                            choiceSimilarityDeltas.append(choiceSimilarityDelta)
+
+                        line = file.readline()
+                        match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]\:[nvar]', line)
+
+                    if validSample:
+                        choice = numpy.argmin(choiceSimilarityDeltas)
+                        correctChoiceIndex = ord(line.strip()) - aCode
+                        scores.append(int(choice == correctChoiceIndex))
+
+            line = file.readline()
+
+    satQuestionsMetric = base * sum(scores) / len(scores)
+    satQuestionsMetricStateOfTheArt = 0.815 * base
+
+    return satQuestionsMetric, satQuestionsMetricStateOfTheArt
 
 
 if __name__ == '__main__':
@@ -150,14 +195,14 @@ if __name__ == '__main__':
     simLex999FilePath = '../data/SimLex-999/SimLex-999.txt'
     simLex999Metric, simLex999MetricStateOfTheArt = evaluateSimLex999(embeddings, simLex999FilePath)
 
-    syntacticWordRelationsFilePath = '../data/Syntactic-Word-Relations/questions-words.txt'
-    syntacticWordRelationsMetric = evaluateSyntacticWordRelations(embeddings, syntacticWordRelationsFilePath)
+    syntWordRelFilePath = '../data/Syntactic-Word-Relations/questions-words.txt'
+    syntWordRelMetric, syntWordRelMetricStateOfTheArt = evaluateSyntacticWordRelations(embeddings, syntWordRelFilePath)
 
     satQuestionsFilePath = '../data/SAT-Questions/SAT-package-V3.txt'
-    satQuestionsMetric = evaluateSATQuestions(embeddings, satQuestionsFilePath)
+    satQuestionsMetric, satQuestionsMetricStateOfTheArt = evaluateSATQuestions(embeddings, satQuestionsFilePath)
 
     log.info('Rubenstein-Goodenough: {0:.2f}/10. State of the art: {1:.2f}/10'.format(rgMetric, rgStateOfTheArt))
     log.info('WordSimilarity-353: {0:.2f}/10. State of the art: {1:.2f}/10'.format(wordSim353Metric, wordSim353StateOfTheArt))
     log.info('SimLex-999: {0:.2f}/10. State of the art: {1:.2f}/10'.format(simLex999Metric, simLex999MetricStateOfTheArt))
-    log.info('Syntactic word relations: {0}/10'.format(syntacticWordRelationsMetric))
-    log.info('SAT Questions: {0}/10'.format(satQuestionsMetric))
+    log.info('Syntactic word relations: {0:.2f}/10. State of the art: {1:.2f}/10'.format(syntWordRelMetric, syntWordRelMetricStateOfTheArt))
+    log.info('SAT Questions: {0:.2f}/10. State of the art: {1:.2f}/10'.format(satQuestionsMetric, satQuestionsMetricStateOfTheArt))
