@@ -121,7 +121,10 @@ def processWikipediaDumps(filterText=True, compress=True):
             pageName = '{0}.txt'.format(pageName)
             pagePath = os.path.join(pagesDirectoryPath, pageName)
 
-            page.dump(pagePath, compress)
+            try:
+                page.dump(pagePath, compress)
+            except:
+                pass
 
         endTime = time.time()
         elapsed += (endTime - startTime)
