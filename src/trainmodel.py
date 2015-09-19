@@ -54,16 +54,12 @@ def main():
     validationInput, validationTargetOutput = validationData
     testingInput, testingTargetOutput = testingData
 
-    batchSize = 500
-
-    trainingBatchesCount = trainingInput.get_value(borrow=True).shape[0] / batchSize
-    validationBatchesCount = validationInput.get_value(borrow=True).shape[0] / batchSize
-    testingBatchesCount = testingInput.get_value(borrow=True).shape[0] / batchSize
+    batchSize = T.iscalar('batchSize')
 
     batchIndex = T.lscalar('index')
 
     testModel = theano.function(
-        inputs=[batchIndex],
+        inputs=[batchIndex, batchSize],
         outputs=performance,
         givens={
             input: testingInput[batchIndex * batchSize: (batchIndex + 1) * batchSize],
@@ -72,7 +68,7 @@ def main():
     )
 
     validateModel = theano.function(
-        inputs=[batchIndex],
+        inputs=[batchIndex, batchSize],
         outputs=performance,
         givens={
             input: validationInput[batchIndex * batchSize: (batchIndex + 1) * batchSize],
@@ -80,13 +76,13 @@ def main():
         }
     )
 
-    learningRate = 0.13
+    learningRate = T.fscalar('learningRate')
     parameters = [weight, bias]
     gradients = [T.grad(cost, wrt=parameter) for parameter in parameters]
     updates = [(parameter, parameter - learningRate * gradient) for parameter, gradient in zip(parameters, gradients)]
 
     trainModel = theano.function(
-        inputs=[batchIndex],
+        inputs=[batchIndex, batchSize, learningRate],
         outputs=cost,
         updates=updates,
         givens={
@@ -98,11 +94,15 @@ def main():
     log.info('Training model...')
 
     epochs = 100
+    trainingBatchesCount = trainingInput.get_value(borrow=True).shape[0] / 500
+    validationBatchesCount = validationInput.get_value(borrow=True).shape[0] / 500
+    testingBatchesCount = testingInput.get_value(borrow=True).shape[0] / 500
+
     for epoch in xrange(epochs):
         for trainBatchIndex in xrange(trainingBatchesCount):
-            trainModel(trainBatchIndex)
+            trainModel(trainBatchIndex, 500, 0.13)
 
-        validationLosses = [validateModel(validationBatchIndex) for validationBatchIndex in xrange(validationBatchesCount)]
+        validationLosses = [validateModel(validationBatchIndex, 500) for validationBatchIndex in xrange(validationBatchesCount)]
         validationLoss = numpy.mean(validationLosses) * 100
 
         message = 'Validation loss: {0:.3f}%'.format(validationLoss)
