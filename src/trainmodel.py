@@ -24,51 +24,28 @@ def loadData(filePath, borrow=True, floatX=theano.config.floatX):
 
     return tuple(data)
 
-
-def main():
-    inputsCount = 28 * 28
-    outputsCount = 10
+def trainModel(trainingData, validationData, epochs, batchSize, learningRate, inputsCount, outputsCount):
+    trainingInput, trainingTargetOutput = trainingData
+    validationInput, validationTargetOutput = validationData
 
     floatX = theano.config.floatX
 
     defaultWeight = numpy.zeros((inputsCount, outputsCount), dtype=floatX)
-    weight = theano.shared(defaultWeight, name='weight', borrow=True)
-
     defaultBias = numpy.zeros((outputsCount,), dtype=floatX)
+
+    weight = theano.shared(defaultWeight, name='weight', borrow=True)
     bias = theano.shared(defaultBias, name='bias', borrow=True)
 
     input = T.matrix('input', dtype=floatX)
-
     output = T.nnet.softmax(T.dot(input, weight) + bias)
-
     targetOutput = T.ivector('targetOutput')
 
     cost = -T.mean(T.log(output)[T.arange(targetOutput.shape[0]), targetOutput])
-
     performance = T.mean(T.neq(T.argmax(output, axis=1), targetOutput))
-
-    filePath = '../data/MNIST/mnist.pkl.gz'
-    trainingData, validationData, testingData = loadData(filePath)
-
-    trainingInput, trainingTargetOutput = trainingData
-    validationInput, validationTargetOutput = validationData
-    testingInput, testingTargetOutput = testingData
-
-    batchSize = T.iscalar('batchSize')
-
     batchIndex = T.lscalar('index')
 
-    testModel = theano.function(
-        inputs=[batchIndex, batchSize],
-        outputs=performance,
-        givens={
-            input: testingInput[batchIndex * batchSize: (batchIndex + 1) * batchSize],
-            targetOutput: trainingTargetOutput[batchIndex * batchSize: (batchIndex + 1) * batchSize]
-        }
-    )
-
     validateModel = theano.function(
-        inputs=[batchIndex, batchSize],
+        inputs=[batchIndex],
         outputs=performance,
         givens={
             input: validationInput[batchIndex * batchSize: (batchIndex + 1) * batchSize],
@@ -76,13 +53,12 @@ def main():
         }
     )
 
-    learningRate = T.fscalar('learningRate')
     parameters = [weight, bias]
     gradients = [T.grad(cost, wrt=parameter) for parameter in parameters]
     updates = [(parameter, parameter - learningRate * gradient) for parameter, gradient in zip(parameters, gradients)]
 
     trainModel = theano.function(
-        inputs=[batchIndex, batchSize, learningRate],
+        inputs=[batchIndex],
         outputs=cost,
         updates=updates,
         givens={
@@ -93,16 +69,14 @@ def main():
 
     log.info('Training model...')
 
-    epochs = 100
-    trainingBatchesCount = trainingInput.get_value(borrow=True).shape[0] / 500
-    validationBatchesCount = validationInput.get_value(borrow=True).shape[0] / 500
-    testingBatchesCount = testingInput.get_value(borrow=True).shape[0] / 500
+    trainingBatchesCount = trainingInput.get_value(borrow=True).shape[0] / batchSize
+    validationBatchesCount = validationInput.get_value(borrow=True).shape[0] / batchSize
 
     for epoch in xrange(epochs):
         for trainBatchIndex in xrange(trainingBatchesCount):
-            trainModel(trainBatchIndex, 500, 0.13)
+            trainModel(trainBatchIndex)
 
-        validationLosses = [validateModel(validationBatchIndex, 500) for validationBatchIndex in xrange(validationBatchesCount)]
+        validationLosses = [validateModel(validationBatchIndex) for validationBatchIndex in xrange(validationBatchesCount)]
         validationLoss = numpy.mean(validationLosses) * 100
 
         message = 'Validation loss: {0:.3f}%'.format(validationLoss)
@@ -110,6 +84,18 @@ def main():
 
     log.newline()
     log.info('Model training complete.')
+
+
+def main():
+    filePath = '../data/MNIST/mnist.pkl.gz'
+    trainingData, validationData, testingData = loadData(filePath)
+
+    inputsCount = 784
+    outputsCount = 10
+
+    floatX = theano.config.floatX
+
+    trainModel(trainingData, validationData, 20, 500, 0.13, inputsCount, outputsCount)
 
 
 if __name__ == '__main__':
