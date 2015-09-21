@@ -7,18 +7,12 @@ import os
 import struct
 
 
-class WordEmbedding():
-    def __init__(self, index, frequency=1):
-        self.index = index
-        self.frequency = frequency
-
-
-def processPages(pagesDirectoryPath, windowSize, contextSize):
-    wikipediaFilesMask = pagesDirectoryPath + '/*/*.gz'
+def processDirectory(pagesDirectoryPath, bufferSize, windowSize):
+    wikipediaFilesMask = pagesDirectoryPath + '/*'
     pageFilePaths = glob.glob(wikipediaFilesMask)
 
-    contexts = []
     vocabulary = collections.OrderedDict()
+    windows = []
     fileIndex = 1
     filesCount = len(pageFilePaths)
 
@@ -26,67 +20,67 @@ def processPages(pagesDirectoryPath, windowSize, contextSize):
     log.info(message)
 
     for pageFilePath in pageFilePaths:
-        if pageFilePath.endswith('gz'):
-            file = gzip.open(pageFilePath)
-        else:
-            file = open(pageFilePath)
+        processPage(pageFilePath, bufferSize, windowSize, vocabulary, windows)
 
-        try:
-            buffer = file.read(windowSize)
-            tail = ''
+    log.newline()
 
-            while buffer != '':
-                buffer = tail + buffer
-                buffer = re.split('\.', buffer)
+    return vocabulary, windows
 
-                tail = buffer[-1]
 
-                for sentence in buffer[:-1]:
-                    words = re.split('\s+', sentence.strip())
+def processPage(pageFilePath, bufferSize, windowSize, vocabulary=None, windows=None):
+    vocabulary = vocabulary if vocabulary is not None else collections.OrderedDict()
+    windows = windows if windows is not None else []
 
-                    for wordIndex in range(len(words) - contextSize + 1):
-                        window = words[wordIndex: wordIndex + contextSize]
+    if pageFilePath.endswith('gz'):
+        file = gzip.open(pageFilePath)
+    else:
+        file = open(pageFilePath)
 
-                        for word in window:
-                            if word not in vocabulary:
-                                vocabulary[word] = WordEmbedding(len(vocabulary))
-                            else:
-                                vocabulary[word].frequency += 1
+    try:
+        buffer = file.read(bufferSize)
+        tail = ''
 
-                        window = map(lambda w: vocabulary[w].index, window)
-                        contexts.append(window)
+        while buffer != '':
+            buffer = tail + buffer
+            buffer = re.split('\.', buffer)
 
-                words = re.split('\s+', tail.lstrip())
+            tail = buffer[-1]
 
-                buffer = file.read(windowSize)
+            for sentence in buffer[:-1]:
+                words = re.split('\s+', sentence.strip())
 
-                if len(words) > contextSize * 2 - 1 or buffer == '':
-                    if buffer != '':
-                        tail = ' '.join(words[-contextSize:])
-                        words = words[:-contextSize]
+                for wordIndex in range(len(words) - windowSize + 1):
+                    window = words[wordIndex: wordIndex + windowSize]
 
-                    for wordIndex in range(len(words) - contextSize + 1):
-                        window = words[wordIndex: wordIndex + contextSize]
+                    for word in window:
+                        if word not in vocabulary:
+                            vocabulary[word] = len(vocabulary)
 
-                        for word in window:
-                            if word not in vocabulary:
-                                vocabulary[word] = WordEmbedding(len(vocabulary))
-                            else:
-                                vocabulary[word].frequency += 1
+                    window = map(lambda w: vocabulary[w], window)
+                    windows.append(window)
 
-                        window = map(lambda w: vocabulary[w].index, window)
-                        contexts.append(window)
+            words = re.split('\s+', tail.lstrip())
 
-            message = 'Words: {0}. Contexts: {1}.'.format(len(vocabulary), len(contexts))
-            log.progress(fileIndex, filesCount, message)
+            buffer = file.read(bufferSize)
 
-            fileIndex += 1
-        finally:
-            file.close()
+            if len(words) > windowSize * 2 - 1 or buffer == '':
+                if buffer != '':
+                    tail = ' '.join(words[-windowSize:])
+                    words = words[:-windowSize]
 
-    log.info('')
+                for wordIndex in range(len(words) - windowSize + 1):
+                    window = words[wordIndex: wordIndex + windowSize]
 
-    return vocabulary, contexts
+                    for word in window:
+                        if word not in vocabulary:
+                            vocabulary[word] = len(vocabulary)
+
+                    window = map(lambda w: vocabulary[w], window)
+                    windows.append(window)
+    finally:
+        file.close()
+
+    return vocabulary, windows
 
 
 def dumpVocabulary(vocabulary, vocabularyFilePath):
@@ -143,7 +137,7 @@ def loadVocabulary(vocabularyFilePath):
             frequency = file.read(4)
             frequency = struct.unpack('<i', frequency)[0]
 
-            vocabulary[word] = WordEmbedding(index, frequency)
+            vocabulary[word] = index
 
             log.progress(itemIndex + 1, itemsCount)
 
@@ -208,7 +202,7 @@ def loadContexts(contextsFilePath):
 
 if __name__ == '__main__':
     #pagesDirectoryPath = '../data/Wikipedia-pages'
-    #vocabulary, contexts = processPages(pagesDirectoryPath, windowSize=100, contextSize=5)
+    #vocabulary, contexts = processPages(pagesDirectoryPath, bufferSize=100, windowSize=5)
 
     vocabularyFilePath = '../data/Wikipedia-data/vocabulary.bin.gz'
     #dumpVocabulary(vocabulary, vocabularyFilePath)

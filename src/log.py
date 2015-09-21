@@ -2,6 +2,7 @@ import sys
 
 
 def info(message, insertNewLine=True):
+    message = str(message)
     sys.stdout.write('\r' + message)
     if insertNewLine:
         newline()
