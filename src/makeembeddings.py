@@ -32,6 +32,7 @@ def dumpEmbeddings(embeddings, embeddingsFilePath):
 
     log.info('')
 
+
 def loadEmbeddigns(embeddingsFilePath):
     message = 'Reading word embeddings from {0}...'.format(embeddingsFilePath)
     log.info(message)
