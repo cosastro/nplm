@@ -23,12 +23,12 @@ def train(vocabulary, trainingInput, trainingTargetOutput, defaultWordEmbeddings
     weight = theano.shared(defaultWeight, name='weight', borrow=True)
     bias = theano.shared(defaultBias, name='bias', borrow=True)
 
-    output = T.nnet.softmax(T.dot(context, weight) + bias)
+    output = T.nnet.softmax(T.dot(context, weight))
     targetOutput = T.ivector('targetOutput')
 
     cost = -T.mean(T.log(output)[T.arange(targetOutput.shape[0]), targetOutput])
 
-    parameters = [wordEmbeddings, weight, bias]
+    parameters = [wordEmbeddings, weight]
     gradients = [T.grad(cost, wrt=p) for p in parameters]
     updates = [(p, p - learningRate * g) for p, g in zip(parameters, gradients)]
 
@@ -63,29 +63,23 @@ if __name__ == '__main__':
     A = lambda x, dtype=None: np.asarray(x, dtype=dtype)
 
     vocabulary, windows = processPage(pageFilePath, bufferSize=100, windowSize=5)
-    wordEmbeddings = makeEmbeddings(vocabulary, embeddingSize=5)
+    wordEmbeddings = makeEmbeddings(vocabulary, embeddingSize=2)
 
     vocabulary = vocabulary
     windows = A(windows)
     input, targetOutput = A(windows[:,:-1], 'int32'), A(windows[:,-1], 'int32')
     wordEmbeddings = A(wordEmbeddings)
 
-    # print cosineSimilarity(wordEmbeddings[4], wordEmbeddings[5])
-    print wordEmbeddings[4], wordEmbeddings[5]
-
-    # print 'A & a: {0}'.format(sim('A', 'a', vocabulary, wordEmbeddings))
-    # print 'B & b: {0}'.format(sim('B', 'b', vocabulary, wordEmbeddings))
-    # print 'C & c: {0}'.format(sim('C', 'c', vocabulary, wordEmbeddings))
-    # print 'D & d: {0}'.format(sim('D', 'd', vocabulary, wordEmbeddings))
-    # print 'E & e: {0}'.format(sim('E', 'e', vocabulary, wordEmbeddings))
+    print 'A & a: {0}'.format(sim('A', 'a', vocabulary, wordEmbeddings))
+    print 'B & b: {0}'.format(sim('B', 'b', vocabulary, wordEmbeddings))
+    print 'C & c: {0}'.format(sim('C', 'c', vocabulary, wordEmbeddings))
+    print 'D & d: {0}'.format(sim('D', 'd', vocabulary, wordEmbeddings))
+    print 'E & e: {0}'.format(sim('E', 'e', vocabulary, wordEmbeddings))
 
     trainedWordEmbeddings = train(vocabulary, input, targetOutput, wordEmbeddings, learningRate=1, epochs=1000)
 
-    # print cosineSimilarity(trainedWordEmbeddings[4], trainedWordEmbeddings[5])
-    print trainedWordEmbeddings[4], trainedWordEmbeddings[5]
-
-    # print 'A & a: {0}'.format(sim('A', 'a', vocabulary, trainedWordEmbeddings))
-    # print 'B & b: {0}'.format(sim('B', 'b', vocabulary, trainedWordEmbeddings))
-    # print 'C & c: {0}'.format(sim('C', 'c', vocabulary, trainedWordEmbeddings))
-    # print 'D & d: {0}'.format(sim('D', 'd', vocabulary, trainedWordEmbeddings))
-    # print 'E & e: {0}'.format(sim('E', 'e', vocabulary, trainedWordEmbeddings))
+    print 'A & a: {0}'.format(sim('A', 'a', vocabulary, trainedWordEmbeddings))
+    print 'B & b: {0}'.format(sim('B', 'b', vocabulary, trainedWordEmbeddings))
+    print 'C & c: {0}'.format(sim('C', 'c', vocabulary, trainedWordEmbeddings))
+    print 'D & d: {0}'.format(sim('D', 'd', vocabulary, trainedWordEmbeddings))
+    print 'E & e: {0}'.format(sim('E', 'e', vocabulary, trainedWordEmbeddings))
