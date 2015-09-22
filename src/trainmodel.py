@@ -71,15 +71,9 @@ if __name__ == '__main__':
     wordEmbeddings = A(wordEmbeddings)
 
     print 'A & a: {0}'.format(sim('A', 'a', vocabulary, wordEmbeddings))
-    print 'B & b: {0}'.format(sim('B', 'b', vocabulary, wordEmbeddings))
-    print 'C & c: {0}'.format(sim('C', 'c', vocabulary, wordEmbeddings))
-    print 'D & d: {0}'.format(sim('D', 'd', vocabulary, wordEmbeddings))
-    print 'E & e: {0}'.format(sim('E', 'e', vocabulary, wordEmbeddings))
+    print 'A & e: {0}'.format(sim('A', 'e', vocabulary, wordEmbeddings))
 
-    trainedWordEmbeddings = train(vocabulary, input, targetOutput, wordEmbeddings, learningRate=1, epochs=1000)
+    trainedWordEmbeddings = train(vocabulary, input, targetOutput, wordEmbeddings, learningRate=0.03, epochs=1000)
 
     print 'A & a: {0}'.format(sim('A', 'a', vocabulary, trainedWordEmbeddings))
-    print 'B & b: {0}'.format(sim('B', 'b', vocabulary, trainedWordEmbeddings))
-    print 'C & c: {0}'.format(sim('C', 'c', vocabulary, trainedWordEmbeddings))
-    print 'D & d: {0}'.format(sim('D', 'd', vocabulary, trainedWordEmbeddings))
-    print 'E & e: {0}'.format(sim('E', 'e', vocabulary, trainedWordEmbeddings))
+    print 'A & e: {0}'.format(sim('A', 'e', vocabulary, trainedWordEmbeddings))
