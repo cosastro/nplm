@@ -23,7 +23,6 @@ def progress(message, index, count, *args):
     percentage = 100 * index / count
     args = [percentage] + list(args)
 
-    message = message or 'Current progress: {0:.3f}%'
     message = message.format(*args)
     message = '\r' + message
 

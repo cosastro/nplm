@@ -4,10 +4,11 @@ import log
 import glob
 import time
 from pathos import multiprocessing
+from datetime import timedelta
 
 class WikipediaPreparator():
     def __init__(self):
-        self.startTime = None
+        self.startTime = time.time()
         self.dumpsCount = 0
         self.flags = None
 
@@ -17,19 +18,18 @@ class WikipediaPreparator():
 
 
     def unpackWikipediaDump(self, dumpIndex, dumpPath, outputDirectoryPath, filterText, compress):
-        self.startTime = time.time() if self.startTime is None else self.startTime
-        dumpName = dumpPath
+        dumpName = os.path.basename(dumpPath).split('.')[0]
         pages = []
         currentTime = time.time()
         elapsed = currentTime - self.startTime
         secondsPerFile = elapsed
 
-        log.progress('Unpacking Wikipedia dumps: {0:.3f}%. Last dump: {1} ({2} pages). Elapsed: {3:.3f} sec. ({4:.3f} sec/file)',
+        log.progress('Unpacking Wikipedia dumps: {0:.3f}%. Last dump: {1} ({2} pages). Elapsed: {3:2}. ({4:.3f} sec/file)',
                      dumpIndex + 1,
                      self.dumpsCount,
                      dumpName,
                      len(pages),
-                     elapsed,
+                     timedelta(seconds=elapsed),
                      secondsPerFile)
 
         time.sleep(0.1)
@@ -52,7 +52,7 @@ class WikipediaPreparator():
         processes = multiprocessing.cpu_count()
         pool = multiprocessing.Pool(processes=processes)
         for dumpIndex, dumpPath in enumerate(dumpPaths):
-            pool.apply_async(self.unpackWikipediaDump, args=(dumpIndex, dumpPath, outputDirectoryPath, filterText, compress))
+            pool.apply(self.unpackWikipediaDump, args=(dumpIndex, dumpPath, outputDirectoryPath, filterText, compress))
         pool.close()
         pool.join()
 
