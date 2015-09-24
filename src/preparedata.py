@@ -9,6 +9,7 @@ class WikipediaPreparator():
     def __init__(self):
         self.startTime = None
         self.dumpsCount = 0
+        self.flags = None
 
 
     def saveWikipediaPage(outputDirectoryPath, dumpIndex, dumpName, pageName, pageText, compress):
@@ -23,15 +24,15 @@ class WikipediaPreparator():
         elapsed = currentTime - self.startTime
         secondsPerFile = elapsed
 
-        log.progress('Preparing Wikipedia data: {0:.3f}%. Last dump: {1} ({2} pages). Elapsed: {3:.3f} sec. ({4:.3f} sec/file)',
-                     dumpIndex,
+        log.progress('Unpacking Wikipedia dumps: {0:.3f}%. Last dump: {1} ({2} pages). Elapsed: {3:.3f} sec. ({4:.3f} sec/file)',
+                     dumpIndex + 1,
                      self.dumpsCount,
                      dumpName,
                      len(pages),
                      elapsed,
                      secondsPerFile)
 
-        time.sleep(1)
+        time.sleep(0.1)
 
 
     def prepare(self, inputDirectoryPath, outputDirectoryPath, filterText=True, compress=True):
@@ -48,7 +49,8 @@ class WikipediaPreparator():
         self.dumpsCount = len(dumpPaths)
         log.info('Found {0} Wikipedia dumps.', self.dumpsCount)
 
-        pool = multiprocessing.Pool(processes=5)
+        processes = multiprocessing.cpu_count()
+        pool = multiprocessing.Pool(processes=processes)
         for dumpIndex, dumpPath in enumerate(dumpPaths):
             pool.apply_async(self.unpackWikipediaDump, args=(dumpIndex, dumpPath, outputDirectoryPath, filterText, compress))
         pool.close()
