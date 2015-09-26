@@ -5,7 +5,7 @@ import glob
 import time
 import gzip
 import re
-from pathos import multiprocessing
+import multiprocessing
 from datetime import timedelta
 
 
@@ -30,6 +30,9 @@ def filterPage(page):
 
 def cleanPage(page):
     pageName, pageText = page
+
+    pageName = re.sub('[^a-zA-Z0-9\s\(\)]', '', pageName).strip()
+
     restrictedHeaders = ['see also', 'footnotes', 'references', 'further reading', 'external links', 'books']
 
     headings = [pageName] + re.findall('^=+\s*([^=]+)\s*=+$', pageText, flags=re.M)
@@ -77,7 +80,8 @@ def savePage(dumpDirectoryPath, pageName, pageText, compress):
             file.write(pageText)
 
 
-def unpackDump(dumpPath, outputDirectoryPath, cleanText):
+def unpackDump(dumpPath, cleanText):
+    dumpName = os.path.basename(dumpPath).split('.')[0]
     pages = []
 
     try:
@@ -98,7 +102,7 @@ def unpackDump(dumpPath, outputDirectoryPath, cleanText):
     except:
         pass
 
-    return pages
+    return dumpName, pages
 
 
 def prepareWikipediaDumps(inputDirectoryPath, outputDirectoryPath, cleanText=True, compress=True):
@@ -117,23 +121,25 @@ def prepareWikipediaDumps(inputDirectoryPath, outputDirectoryPath, cleanText=Tru
 
     startTime = time.time()
     for dumpIndex, dumpPath in enumerate(dumpPaths):
-        pages = unpackDump(dumpPath, outputDirectoryPath, cleanText)
+        dumpName, pages = unpackDump(dumpPath, cleanText)
 
-        dumpName = os.path.basename(dumpPath).split('.')[0]
+        if len(pages) > 0:
+            dumpDirectoryPath = os.path.join(outputDirectoryPath, dumpName)
+            os.mkdir(dumpDirectoryPath)
+            os.chown(dumpDirectoryPath, 1000, 1000)
 
-        dumpDirectoryPath = os.path.join(outputDirectoryPath, dumpName)
-        os.mkdir(dumpDirectoryPath)
-        os.chown(dumpDirectoryPath, 1000, 1000)
-
-        for pageName, pageText in pages:
-            pageName = re.sub('[^a-zA-Z0-9\s\(\)]', '', pageName).strip()
-            savePage(dumpDirectoryPath, pageName, pageText, compress)
+            cpuCount = multiprocessing.cpu_count()
+            pool = multiprocessing.Pool(processes=cpuCount)
+            for pageName, pageText in pages:
+                pool.apply_async(savePage, args=(dumpDirectoryPath, pageName, pageText, compress))
+            pool.close()
+            pool.join()
 
         currentTime = time.time()
         elapsed = currentTime - startTime
         secondsPerFile = elapsed / (dumpIndex + 1)
 
-        log.progress('Unpacking Wikipedia dumps: {0:.3f}%. Last dump: {1} ({2} pages). Elapsed: {3}. ({4:.3f} sec/file)',
+        log.progress('Unpacking Wikipedia dumps: {0:.3f}%. Last dump: {1} ({2} pages). Elapsed: {3}. ({4:.3f} sec/dump)',
                      dumpIndex + 1,
                      dumpsCount,
                      dumpName,
