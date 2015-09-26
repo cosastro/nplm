@@ -17,14 +17,14 @@ def lineBreak():
     sys.stdout.flush()
 
 
-def progress(message, index, count, *args):
+def progress(messageFormat, index, count, *args):
     index = float(index)
     count = float(count)
     percentage = 100 * index / count
     args = [percentage] + list(args)
 
-    message = message.format(*args)
-    message = '\r' + message
+    messageFormat = messageFormat.format(*args)
+    messageFormat = '\r' + messageFormat
 
-    sys.stdout.write(message)
+    sys.stdout.write(messageFormat)
     sys.stdout.flush()

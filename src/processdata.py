@@ -4,6 +4,8 @@ import log
 import time
 import gzip
 import re
+import struct
+import io
 from datetime import timedelta
 
 
@@ -52,46 +54,100 @@ class ContextProvider:
                     yield window
 
 
+def dumpFileVocabulary(vocabulary, vocabularyFilePath):
+    dumpVocabulary(vocabulary, vocabularyFilePath, 'Dumping file vocabulary: {0:.3f}%.')
+
+
+def dumpWordVocabulary(vocabulary, vocabularyFilePath):
+    dumpVocabulary(vocabulary, vocabularyFilePath, 'Dumping word vocabulary: {0:.3f}%.')
+
+
+def dumpVocabulary(vocabulary, vocabularyFilePath, messageFormat):
+    if os.path.exists(vocabularyFilePath):
+        os.remove(vocabularyFilePath)
+
+    itemsCount = len(vocabulary)
+    itemIndex = 0
+
+    with gzip.open(vocabularyFilePath, 'w') as file:
+        file.write(struct.pack('<i', itemsCount))
+
+        for key, index in vocabulary.items():
+            keyLength = len(key)
+            keyLength = struct.pack('<i', keyLength)
+            index = struct.pack('<i', index)
+
+            file.write(keyLength)
+            file.write(key)
+            file.write(index)
+
+            file.flush()
+
+            itemIndex += 1
+            log.progress(messageFormat, itemIndex, itemsCount)
+
+        log.lineBreak()
+
+
 def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize):
-    for filePath in [fileVocabularyPath, wordVocabularyPath, contextsPath]:
-        if os.path.exists(filePath):
-            os.remove(filePath)
+    if os.path.exists(contextsPath):
+        os.remove(contextsPath)
 
     fileVocabulary = {}
     wordVocabulary = {}
 
-    pathName = inputDirectoryPath + '/*/*.txt.gz'
-    textFilePaths = glob.glob(pathName)
-    textFileCount = len(textFilePaths)
-    startTime = time.time()
+    with open(contextsPath, 'wb+') as contextsFile:
+        contextsFile.write(struct.pack('<i', 0))
+        contextsFile.write(struct.pack('<i', contextSize))
 
-    for textFileIndex, textFilePath in enumerate(textFilePaths):
-        contextProvider = ContextProvider(textFilePath)
-        for wordContext in contextProvider.next(contextSize):
-            for word in wordContext:
-                if word not in wordVocabulary:
-                    wordVocabulary[word] = len(wordVocabulary)
+        pathName = inputDirectoryPath + '/*/*.txt.gz'
+        textFilePaths = glob.glob(pathName)
+        textFileCount = len(textFilePaths)
+        startTime = time.time()
 
-            indexContext = map(lambda w: wordVocabulary[w], wordContext)
+        contextFormat = '{0}i'.format(contextSize)
+        contextsCount = 0
 
-        textFileName = os.path.basename(textFilePath)
-        currentTime = time.time()
-        elapsed = currentTime - startTime
-        secondsPerFile = elapsed / (textFileIndex + 1)
+        for textFileIndex, textFilePath in enumerate(textFilePaths):
+            contextProvider = ContextProvider(textFilePath)
+            for wordContext in contextProvider.next(contextSize):
+                for word in wordContext:
+                    if word not in wordVocabulary:
+                        wordVocabulary[word] = len(wordVocabulary)
 
-        log.progress('Reading contexts: {0:.3f}%. Elapsed: {1}. ({2:.3f} sec/file). Last file: {3}.',
-                     textFileIndex + 1,
-                     textFileCount,
-                     timedelta(seconds=elapsed),
-                     secondsPerFile,
-                     textFileName)
+                indexContext = map(lambda w: wordVocabulary[w], wordContext)
+                contextsFile.write(struct.pack(contextFormat, *indexContext))
+                contextsCount += 1
+
+            fileVocabulary[textFilePath] = len(fileVocabulary)
+
+            textFileName = os.path.basename(textFilePath)
+            currentTime = time.time()
+            elapsed = currentTime - startTime
+            secondsPerFile = elapsed / (textFileIndex + 1)
+
+            log.progress('Reading contexts: {0:.3f}%. Elapsed: {1} ({2:.3f} sec/file). Vocabulary: {3}. Last file: {4}.',
+                         textFileIndex + 1,
+                         textFileCount,
+                         timedelta(seconds=elapsed),
+                         secondsPerFile,
+                         len(wordVocabulary),
+                         textFileName)
+
+        log.lineBreak()
+
+        contextsFile.seek(0, io.SEEK_SET)
+        contextsFile.write(struct.pack('<i', contextsCount))
+
+        dumpFileVocabulary(fileVocabulary, fileVocabularyPath)
+        dumpWordVocabulary(wordVocabulary, wordVocabularyPath)
 
 
 if __name__ == '__main__':
     inputDirectoryPath = '../data/Wikipedia_prepared'
-    fileVocabularyPath = '../data/Wikipedia_processed/file_vocabulary.bin'
-    wordVocabularyPath = '../data/Wikipedia_processed/word_vocabulary.bin'
-    contextsPath = '../data/Wikipedia_processed/contexts.bin'
+    fileVocabularyPath = '../data/Wikipedia_processed/file_vocabulary.bin.gz'
+    wordVocabularyPath = '../data/Wikipedia_processed/word_vocabulary.bin.gz'
+    contextsPath = '../data/Wikipedia_processed/contexts.bin.gz'
     contextSize = 5
 
     processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize)
