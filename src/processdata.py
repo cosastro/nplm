@@ -121,26 +121,32 @@ def loadContexts(contextsFilePath):
         contextsCount = file.read(4)
         contextsCount = struct.unpack('i', contextsCount)[0]
 
+        includeFileIndex = file.read(1)
+        includeFileIndex = struct.unpack('?', contextsCount)[0]
+
         contextLength = file.read(4)
         contextLength = struct.unpack('i', contextLength)[0]
+
+        if includeFileIndex:
+            contextLength += 1
 
         format = '{0}i'.format(contextLength)
 
         for contextIndex in range(0, contextsCount):
             context = file.read(contextLength * 4)
-            context = struct.unpack(format, context)[0]
+            context = struct.unpack(format, context)
 
             contexts.append(context)
 
-            log.progress('Locading contexts: {0:.3f}%.', contextIndex, contextsCount)
             contextIndex += 1
+            log.progress('Locading contexts: {0:.3f}%.', contextIndex + 1, contextsCount)
 
         log.lineBreak()
 
     return contexts
 
 
-def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize):
+def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, includeFileIndex, contextSize):
     if os.path.exists(contextsPath):
         os.remove(contextsPath)
 
@@ -154,17 +160,20 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
     with open(tempContextsPath, 'wb+') as tempContextsFile:
         tempContextsFile.write(struct.pack('i', 0)) #this is a placeholder for contexts count
+        tempContextsFile.write(struct.pack('?', includeFileIndex))
         tempContextsFile.write(struct.pack('i', contextSize))
 
         pathName = inputDirectoryPath + '/*/*.txt.gz'
-        textFilePaths = glob.glob(pathName)[:100]
+        textFilePaths = glob.glob(pathName)
         textFileCount = len(textFilePaths)
         startTime = time.time()
 
-        contextFormat = '{0}i'.format(contextSize)
+        contextFormat = '{0}i'.format(contextSize + 1 if includeFileIndex else contextSize)
         contextsCount = 0
 
         for textFileIndex, textFilePath in enumerate(textFilePaths):
+            fileVocabulary[textFilePath] = textFileIndex
+
             contextProvider = ContextProvider(textFilePath)
             for wordContext in contextProvider.next(contextSize):
                 for word in wordContext:
@@ -172,23 +181,23 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
                         wordVocabulary[word] = len(wordVocabulary)
 
                 indexContext = map(lambda w: wordVocabulary[w], wordContext)
+                if includeFileIndex:
+                    indexContext = [textFileIndex] + indexContext
+
                 tempContextsFile.write(struct.pack(contextFormat, *indexContext))
                 contextsCount += 1
-
-            fileVocabulary[textFilePath] = len(fileVocabulary)
 
             textFileName = os.path.basename(textFilePath)
             currentTime = time.time()
             elapsed = currentTime - startTime
             secondsPerFile = elapsed / (textFileIndex + 1)
 
-            log.progress('Reading contexts: {0:.3f}%. Elapsed: {1} ({2:.3f} sec/file). Vocabulary: {3}. Last file: {4}.',
+            log.progress('Reading contexts: {0:.3f}%. Elapsed: {1} ({2:.3f} sec/file). Vocabulary: {3}.',
                          textFileIndex + 1,
                          textFileCount,
                          timedelta(seconds=elapsed),
                          secondsPerFile,
-                         len(wordVocabulary),
-                         textFileName)
+                         len(wordVocabulary))
 
         log.lineBreak()
 
@@ -223,4 +232,4 @@ if __name__ == '__main__':
     contextsPath = '../data/Wikipedia_processed/contexts.bin.gz'
     contextSize = 5
 
-    processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize)
+    processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, True, contextSize)
