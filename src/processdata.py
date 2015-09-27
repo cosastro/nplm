@@ -89,6 +89,57 @@ def dumpVocabulary(vocabulary, vocabularyFilePath, messageFormat):
         log.lineBreak()
 
 
+def loadVocabulary(vocabularyFilePath):
+    vocabulary = {}
+
+    with gzip.open(vocabularyFilePath, 'rb') as file:
+        itemsCount = file.read(4)
+        itemsCount = struct.unpack('i', itemsCount)[0]
+
+        for itemIndex in range(0, itemsCount):
+            wordLength = file.read(4)
+            wordLength = struct.unpack('i', wordLength)[0]
+
+            word = file.read(wordLength)
+
+            index = file.read(4)
+            index = struct.unpack('i', index)[0]
+
+            vocabulary[word] = index
+
+            log.progress('Locading vocabulary: {0:.3f}%.', itemIndex + 1, itemsCount)
+
+        log.info('')
+
+    return vocabulary
+
+
+def loadContexts(contextsFilePath):
+    contexts = []
+
+    with gzip.open(contextsFilePath, 'rb') as file:
+        contextsCount = file.read(4)
+        contextsCount = struct.unpack('i', contextsCount)[0]
+
+        contextLength = file.read(4)
+        contextLength = struct.unpack('i', contextLength)[0]
+
+        format = '{0}i'.format(contextLength)
+
+        for contextIndex in range(0, contextsCount):
+            context = file.read(contextLength * 4)
+            context = struct.unpack(format, context)[0]
+
+            contexts.append(context)
+
+            log.progress('Locading contexts: {0:.3f}%.', contextIndex, contextsCount)
+            contextIndex += 1
+
+        log.lineBreak()
+
+    return contexts
+
+
 def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize):
     if os.path.exists(contextsPath):
         os.remove(contextsPath)
@@ -102,11 +153,11 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
         os.remove(tempContextsPath)
 
     with open(tempContextsPath, 'wb+') as tempContextsFile:
-        tempContextsFile.write(struct.pack('i', 0))
+        tempContextsFile.write(struct.pack('i', 0)) #this is a placeholder for contexts count
         tempContextsFile.write(struct.pack('i', contextSize))
 
         pathName = inputDirectoryPath + '/*/*.txt.gz'
-        textFilePaths = glob.glob(pathName)
+        textFilePaths = glob.glob(pathName)[:100]
         textFileCount = len(textFilePaths)
         startTime = time.time()
 

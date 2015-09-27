@@ -5,7 +5,6 @@ import glob
 import time
 import gzip
 import re
-import multiprocessing
 from datetime import timedelta
 
 
@@ -96,9 +95,7 @@ def unpackDump(dumpPath, cleanText):
         pages = filter(filterPage, pages)
 
         if cleanText:
-            cpuCount = multiprocessing.cpu_count()
-            pool = multiprocessing.Pool(processes=cpuCount)
-            pages = pool.map(cleanPage, pages)
+            pages = map(cleanPage, pages)
     except:
         pass
 
@@ -120,6 +117,7 @@ def prepareWikipediaDumps(inputDirectoryPath, outputDirectoryPath, cleanText=Tru
     log.info('Found {0} Wikipedia dumps.', dumpsCount)
 
     startTime = time.time()
+
     for dumpIndex, dumpPath in enumerate(dumpPaths):
         dumpName, pages = unpackDump(dumpPath, cleanText)
 
@@ -128,12 +126,8 @@ def prepareWikipediaDumps(inputDirectoryPath, outputDirectoryPath, cleanText=Tru
             os.mkdir(dumpDirectoryPath)
             os.chown(dumpDirectoryPath, 1000, 1000)
 
-            cpuCount = multiprocessing.cpu_count()
-            pool = multiprocessing.Pool(processes=cpuCount)
             for pageName, pageText in pages:
-                pool.apply_async(savePage, args=(dumpDirectoryPath, pageName, pageText, compress))
-            pool.close()
-            pool.join()
+                savePage(dumpDirectoryPath, pageName, pageText, compress)
 
         currentTime = time.time()
         elapsed = currentTime - startTime
