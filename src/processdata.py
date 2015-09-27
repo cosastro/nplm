@@ -96,9 +96,14 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
     fileVocabulary = {}
     wordVocabulary = {}
 
-    with open(contextsPath, 'wb+') as contextsFile:
-        contextsFile.write(struct.pack('<i', 0))
-        contextsFile.write(struct.pack('<i', contextSize))
+    tempContextsPath = contextsPath + '.tmp'
+
+    if os.path.exists(tempContextsPath):
+        os.remove(tempContextsPath)
+
+    with open(tempContextsPath, 'wb+') as tempContextsFile:
+        tempContextsFile.write(struct.pack('i', 0))
+        tempContextsFile.write(struct.pack('i', contextSize))
 
         pathName = inputDirectoryPath + '/*/*.txt.gz'
         textFilePaths = glob.glob(pathName)
@@ -116,7 +121,7 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
                         wordVocabulary[word] = len(wordVocabulary)
 
                 indexContext = map(lambda w: wordVocabulary[w], wordContext)
-                contextsFile.write(struct.pack(contextFormat, *indexContext))
+                tempContextsFile.write(struct.pack(contextFormat, *indexContext))
                 contextsCount += 1
 
             fileVocabulary[textFilePath] = len(fileVocabulary)
@@ -136,11 +141,28 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
         log.lineBreak()
 
-        contextsFile.seek(0, io.SEEK_SET)
-        contextsFile.write(struct.pack('<i', contextsCount))
+        tempContextsFile.seek(0, io.SEEK_SET)
+        tempContextsFile.write(struct.pack('i', contextsCount))
 
-        dumpFileVocabulary(fileVocabulary, fileVocabularyPath)
-        dumpWordVocabulary(wordVocabulary, wordVocabularyPath)
+    bufferSize = 1000
+    tempFileStats = os.stat(tempContextsPath)
+    tempFileSize = tempFileStats.st_size
+    with open(tempContextsPath, 'rb') as tempContextsFile:
+        with gzip.open(contextsPath, 'wb+') as contextsFile:
+            buffer = tempContextsFile.read(bufferSize)
+            while buffer != '':
+                contextsFile.write(buffer)
+                buffer = tempContextsFile.read(bufferSize)
+
+                position = tempContextsFile.tell()
+                log.progress('Compressing contexts file: {0:.3f}%.', position, tempFileSize)
+
+    log.lineBreak()
+
+    os.remove(tempContextsPath)
+
+    dumpFileVocabulary(fileVocabulary, fileVocabularyPath)
+    dumpWordVocabulary(wordVocabulary, wordVocabularyPath)
 
 
 if __name__ == '__main__':
