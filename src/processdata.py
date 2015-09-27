@@ -70,21 +70,21 @@ def dumpVocabulary(vocabulary, vocabularyFilePath, messageFormat):
     itemIndex = 0
 
     with gzip.open(vocabularyFilePath, 'w') as file:
-        file.write(struct.pack('<i', itemsCount))
+        file.write(struct.pack('i', itemsCount))
 
         for key, index in vocabulary.items():
             keyLength = len(key)
-            keyLength = struct.pack('<i', keyLength)
-            index = struct.pack('<i', index)
+            keyLength = struct.pack('i', keyLength)
+            index = struct.pack('i', index)
 
             file.write(keyLength)
             file.write(key)
             file.write(index)
 
-            file.flush()
-
             itemIndex += 1
             log.progress(messageFormat, itemIndex, itemsCount)
+
+        file.flush()
 
         log.lineBreak()
 
@@ -144,7 +144,7 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
         tempContextsFile.seek(0, io.SEEK_SET)
         tempContextsFile.write(struct.pack('i', contextsCount))
 
-    bufferSize = 1000
+    bufferSize = 1048576
     tempFileStats = os.stat(tempContextsPath)
     tempFileSize = tempFileStats.st_size
     with open(tempContextsPath, 'rb') as tempContextsFile:
