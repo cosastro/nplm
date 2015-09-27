@@ -122,7 +122,7 @@ def loadContexts(contextsFilePath):
         contextsCount = struct.unpack('i', contextsCount)[0]
 
         includeFileIndex = file.read(1)
-        includeFileIndex = struct.unpack('?', contextsCount)[0]
+        includeFileIndex = struct.unpack('?', includeFileIndex)[0]
 
         contextLength = file.read(4)
         contextLength = struct.unpack('i', contextLength)[0]
