@@ -112,7 +112,7 @@ def prepareWikipediaDumps(inputDirectoryPath, outputDirectoryPath, cleanText=Tru
     log.info('Output directory {0} has been created.', outputDirectoryPath)
 
     pathName = inputDirectoryPath + '/*wiki*.txt.gz'
-    dumpPaths = glob.glob(pathName)
+    dumpPaths = glob.glob(pathName)[:64]
     dumpsCount = len(dumpPaths)
     log.info('Found {0} Wikipedia dumps.', dumpsCount)
 
