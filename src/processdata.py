@@ -187,7 +187,7 @@ def loadContexts(contextsFilePath):
             contexts.append(context)
 
             contextIndex += 1
-            log.progress('Loading contexts: {0:.3f}%.', contextIndex + 1, contextsCount)
+            log.progress('Loading contexts: {0:.3f}%.', contextIndex, contextsCount)
 
         log.lineBreak()
 
@@ -298,12 +298,12 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
     fileVocabulary = collections.OrderedDict()
     wordVocabulary = collections.OrderedDict()
 
-    tempContextsPath = contextsPath + '.tmp'
+    uncompressedContextsPath = contextsPath + '.uncompressed'
 
-    if os.path.exists(tempContextsPath):
-        os.remove(tempContextsPath)
+    if os.path.exists(uncompressedContextsPath):
+        os.remove(uncompressedContextsPath)
 
-    with open(tempContextsPath, 'wb+') as tempContextsFile:
+    with open(uncompressedContextsPath, 'wb+') as tempContextsFile:
         tempContextsFile.write(struct.pack('i', 0)) # this is a placeholder for contexts count
         tempContextsFile.write(struct.pack('i', contextSize))
 
@@ -349,6 +349,7 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
         tempContextsFile.seek(0, io.SEEK_SET)
         tempContextsFile.write(struct.pack('i', contextsCount))
+        tempContextsFile.flush()
 
     whiteList = readWhiteList(whiteListPath)
     originalVocabularyLength = len(wordVocabulary)
@@ -356,8 +357,10 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
     log.info('Vocabulary has been pruned. {0} items left out of {1}.', len(prunedWordVocabulary), originalVocabularyLength)
 
-    with open(tempContextsPath, 'rb') as tempContextsFile:
-        contextsCount = tempContextsFile.read(4) # this is a placeholder for contexts count
+    uncompressedPrunedContextsPath = contextsPath + '.uncompressed-pruned'
+
+    with open(uncompressedContextsPath, 'rb') as tempContextsFile:
+        contextsCount = tempContextsFile.read(4)
         contextSize = tempContextsFile.read(4)
 
         contextsCount = struct.unpack('i', contextsCount)[0]
@@ -365,30 +368,66 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
         format = '{0}i'.format(contextSize + 1) # plus one spot for file index
         bufferSize = (contextSize + 1) * 4
-        tempFileStats = os.stat(tempContextsPath)
-        tempFileSize = tempFileStats.st_size
-        with gzip.open(contextsPath, 'wb+') as contextsFile:
-            buffer = tempContextsFile.read(bufferSize)
+        prunedContextsCount = 0
+        with open(uncompressedPrunedContextsPath, 'wb+') as uncompressedPrunedContexts:
+            uncompressedPrunedContexts.write(struct.pack('i', 0)) # placeholder for contexts count
+            uncompressedPrunedContexts.write(struct.pack('i', contextSize))
 
-            while buffer != '':
+            contextIndex = 0
+            while contextIndex < contextsCount:
+                buffer = tempContextsFile.read(bufferSize)
+
                 context = struct.unpack(format, buffer)
                 fileIndex = context[0]
                 indexContext = context[1:]
 
                 if all([index in wordIndexMap for index in indexContext]):
+                    prunedContextsCount += 1
                     indexContext = map(lambda wordIndex: wordIndexMap[wordIndex], indexContext)
                     context = [fileIndex] + indexContext
                     buffer = struct.pack(format, *context)
-                    contextsFile.write(buffer)
+                    uncompressedPrunedContexts.write(buffer)
 
-                buffer = tempContextsFile.read(bufferSize)
+                contextIndex += 1
+                log.progress('Pruning contexts: {0:.3f}%. Pruned contexts: {1}. Original contexts: {2}',
+                             contextIndex,
+                             contextsCount,
+                             prunedContextsCount,
+                             contextsCount)
 
-                position = tempContextsFile.tell()
-                log.progress('Compressing and pruning contexts: {0:.3f}%.', position, tempFileSize)
+            log.lineBreak()
 
-    log.lineBreak()
+            uncompressedPrunedContexts.seek(0, io.SEEK_SET)
+            uncompressedPrunedContexts.write(struct.pack('i', prunedContextsCount))
+            uncompressedPrunedContexts.flush()
 
-    os.remove(tempContextsPath)
+    with open(uncompressedPrunedContextsPath, 'rb') as uncompressedPrunedContexts:
+        contextsCount = uncompressedPrunedContexts.read(4)
+        contextSize = uncompressedPrunedContexts.read(4)
+
+        contextsCount = struct.unpack('i', contextsCount)[0]
+        contextSize = struct.unpack('i', contextSize)[0]
+
+        format = '{0}i'.format(contextSize + 1) # plus one spot for file index
+        bufferSize = (contextSize + 1) * 4
+        with gzip.open(contextsPath, 'wb+') as contextsFile:
+            contextsFile.write(struct.pack('i', contextsCount))
+            contextsFile.write(struct.pack('i', contextSize))
+
+            contextIndex = 0
+            while contextIndex < contextsCount:
+                buffer = uncompressedPrunedContexts.read(bufferSize)
+                contextsFile.write(buffer)
+
+                contextIndex += 1
+                log.progress('Compressing contexts: {0:.3f}%.', contextIndex, contextsCount)
+
+            contextsFile.flush()
+
+        log.lineBreak()
+
+    os.remove(uncompressedContextsPath)
+    os.remove(uncompressedPrunedContextsPath)
 
     dumpFileVocabulary(fileVocabulary, fileVocabularyPath)
     dumpWordVocabulary(prunedWordVocabulary, wordVocabularyPath)
@@ -404,6 +443,3 @@ if __name__ == '__main__':
     whiteListPath = '../data/Fake/Tools/white_list.txt'
 
     processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize, maxVocabularySize)
-
-    wv = loadWordVocabulary(wordVocabularyPath)
-    print wv.items()
