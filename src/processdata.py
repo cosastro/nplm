@@ -7,6 +7,7 @@ import re
 import struct
 import io
 import collections
+import math
 from datetime import timedelta
 
 
@@ -201,13 +202,26 @@ def readWhiteList(whiteListFilePath):
         return whiteList
 
 
+pruningStepIndex = 0
 def pruneWordVocabulary(wordVocabulary, maxVocabularySize, whiteList):
-    if len(wordVocabulary) <= maxVocabularySize:
-        return wordVocabulary, None
+    global pruningStepIndex
 
-    #TODO: add progress logging (https://en.wikipedia.org/wiki/Timsort)
+    originalVocabularyLength = len(wordVocabulary)
+    prunedVocabularyLength = min(originalVocabularyLength, maxVocabularySize)
 
-    def comparator(wordInfoX, wordInfoY):
+    pruningStepsCount = 0
+    if originalVocabularyLength > maxVocabularySize:
+        pruningStepsCount += originalVocabularyLength * math.log(originalVocabularyLength)
+    pruningStepsCount += prunedVocabularyLength * math.log(prunedVocabularyLength)
+    pruningStepsCount += prunedVocabularyLength
+
+    def whiteListPriorityComparator(wordInfoX, wordInfoY):
+        global pruningStepIndex
+
+        pruningStepIndex += 1
+        if pruningStepIndex % 1000:
+            log.progress('Pruning word vocabulary: {0:.3f}%.', pruningStepIndex, pruningStepsCount)
+
         wordX, infoX = wordInfoX
         wordY, infoY = wordInfoY
 
@@ -231,8 +245,33 @@ def pruneWordVocabulary(wordVocabulary, maxVocabularySize, whiteList):
 
         return 0
 
-    prunedWordVocabulary = sorted(wordVocabulary.items(), cmp=comparator)
-    prunedWordVocabulary = prunedWordVocabulary[:maxVocabularySize]
+    prunedWordVocabulary = wordVocabulary.items()
+
+    if originalVocabularyLength > maxVocabularySize:
+        prunedWordVocabulary = sorted(prunedWordVocabulary, cmp=whiteListPriorityComparator)
+        prunedWordVocabulary = prunedWordVocabulary[:maxVocabularySize]
+
+    def frequencyComparator(wordInfoX, wordInfoY):
+        global pruningStepIndex
+
+        pruningStepIndex += 1
+        if pruningStepIndex % 1000:
+            log.progress('Pruning word vocabulary: {0:.3f}%.', pruningStepIndex, pruningStepsCount)
+
+        wordX, infoX = wordInfoX
+        wordY, infoY = wordInfoY
+
+        frequencyX = infoX[1]
+        frequencyY = infoY[1]
+
+        if frequencyX < frequencyY:
+            return 1
+        elif frequencyX > frequencyY:
+            return -1
+
+        return 0
+
+    prunedWordVocabulary = sorted(prunedWordVocabulary, cmp=frequencyComparator)
     prunedWordVocabulary = collections.OrderedDict(prunedWordVocabulary)
 
     wordIndexMap = {}
@@ -242,6 +281,12 @@ def pruneWordVocabulary(wordVocabulary, maxVocabularySize, whiteList):
         wordIndexMap[previousIndex] = wordIndex
 
         prunedWordVocabulary[word] = wordIndex, wordFrequency
+
+        log.progress('Pruning word vocabulary: {0:.3f}%.', pruningStepIndex, pruningStepsCount)
+        pruningStepIndex += 1
+
+    log.progress('Pruning word vocabulary: {0:.3f}%.', pruningStepsCount, pruningStepsCount)
+    log.lineBreak()
 
     return prunedWordVocabulary, wordIndexMap
 
@@ -330,7 +375,7 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
                 fileIndex = context[0]
                 indexContext = context[1:]
 
-                if all([index in wordIndexMap for index in indexContext]) and wordIndexMap:
+                if all([index in wordIndexMap for index in indexContext]):
                     indexContext = map(lambda wordIndex: wordIndexMap[wordIndex], indexContext)
                     context = [fileIndex] + indexContext
                     buffer = struct.pack(format, *context)
@@ -339,7 +384,7 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
                 buffer = tempContextsFile.read(bufferSize)
 
                 position = tempContextsFile.tell()
-                log.progress('Compressing contexts file: {0:.3f}%.', position, tempFileSize)
+                log.progress('Compressing and pruning contexts: {0:.3f}%.', position, tempFileSize)
 
     log.lineBreak()
 
@@ -355,7 +400,7 @@ if __name__ == '__main__':
     wordVocabularyPath = '../data/Wikipedia_processed/word_vocabulary.bin.gz'
     contextsPath = '../data/Wikipedia_processed/contexts.bin.gz'
     contextSize = 5
-    maxVocabularySize = 5000
+    maxVocabularySize = 50000
     whiteListPath = '../data/Tools/white_list.txt'
 
     processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize, maxVocabularySize)
