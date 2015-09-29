@@ -391,16 +391,19 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
     os.remove(tempContextsPath)
 
     dumpFileVocabulary(fileVocabulary, fileVocabularyPath)
-    dumpWordVocabulary(wordVocabulary, wordVocabularyPath)
+    dumpWordVocabulary(prunedWordVocabulary, wordVocabularyPath)
 
 
 if __name__ == '__main__':
-    inputDirectoryPath = '../data/Wikipedia_prepared'
-    fileVocabularyPath = '../data/Wikipedia_processed/file_vocabulary.bin.gz'
-    wordVocabularyPath = '../data/Wikipedia_processed/word_vocabulary.bin.gz'
-    contextsPath = '../data/Wikipedia_processed/contexts.bin.gz'
+    inputDirectoryPath = '../data/Fake/Dumps'
+    fileVocabularyPath = '../data/Fake/Processed/file_vocabulary.bin.gz'
+    wordVocabularyPath = '../data/Fake/Processed/word_vocabulary.bin.gz'
+    contextsPath = '../data/Fake/Processed/contexts.bin.gz'
     contextSize = 5
-    maxVocabularySize = 50000
-    whiteListPath = '../data/Tools/white_list.txt'
+    maxVocabularySize = 6
+    whiteListPath = '../data/Fake/Tools/white_list.txt'
 
     processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize, maxVocabularySize)
+
+    wv = loadWordVocabulary(wordVocabularyPath)
+    print wv.items()
