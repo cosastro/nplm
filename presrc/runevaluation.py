@@ -188,21 +188,20 @@ if __name__ == '__main__':
 
     rgFilePath = '../data/RG/EN-RG-65.txt'
     rgMetric, rgStateOfTheArt = evaluateRubensteinGoodenough(embeddings, rgFilePath)
+    log.info('Rubenstein-Goodenough: {0:.2f}/10. State of the art: {1:.2f}/10'.format(rgMetric, rgStateOfTheArt))
 
     wordSimilarity353FilePath = '../data/WordSimilarity-353/combined.csv'
     wordSim353Metric, wordSim353StateOfTheArt = evaluateWordSimilarity353(embeddings, wordSimilarity353FilePath)
+    log.info('WordSimilarity-353: {0:.2f}/10. State of the art: {1:.2f}/10'.format(wordSim353Metric, wordSim353StateOfTheArt))
 
     simLex999FilePath = '../data/SimLex-999/SimLex-999.txt'
     simLex999Metric, simLex999MetricStateOfTheArt = evaluateSimLex999(embeddings, simLex999FilePath)
+    log.info('SimLex-999: {0:.2f}/10. State of the art: {1:.2f}/10'.format(simLex999Metric, simLex999MetricStateOfTheArt))
 
     syntWordRelFilePath = '../data/Syntactic-Word-Relations/questions-words.txt'
     syntWordRelMetric, syntWordRelMetricStateOfTheArt = evaluateSyntacticWordRelations(embeddings, syntWordRelFilePath)
+    log.info('Syntactic word relations: {0:.2f}/10. State of the art: {1:.2f}/10'.format(syntWordRelMetric, syntWordRelMetricStateOfTheArt))
 
     satQuestionsFilePath = '../data/SAT-Questions/SAT-package-V3.txt'
     satQuestionsMetric, satQuestionsMetricStateOfTheArt = evaluateSATQuestions(embeddings, satQuestionsFilePath)
-
-    log.info('Rubenstein-Goodenough: {0:.2f}/10. State of the art: {1:.2f}/10'.format(rgMetric, rgStateOfTheArt))
-    log.info('WordSimilarity-353: {0:.2f}/10. State of the art: {1:.2f}/10'.format(wordSim353Metric, wordSim353StateOfTheArt))
-    log.info('SimLex-999: {0:.2f}/10. State of the art: {1:.2f}/10'.format(simLex999Metric, simLex999MetricStateOfTheArt))
-    log.info('Syntactic word relations: {0:.2f}/10. State of the art: {1:.2f}/10'.format(syntWordRelMetric, syntWordRelMetricStateOfTheArt))
     log.info('SAT Questions: {0:.2f}/10. State of the art: {1:.2f}/10'.format(satQuestionsMetric, satQuestionsMetricStateOfTheArt))
