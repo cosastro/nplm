@@ -88,21 +88,21 @@ def getRubensteinGoodenoughWords(filePath):
     return words
 
 
-if __name__ == '__main__':
+def make():
     words = []
 
-    words += getSyntacticWordRelationsWords('../data/Syntactic-Word-Relations/questions-words.txt')
-    words += getSATWords('../data/SAT-Questions/SAT-package-V3.txt')
-    words += getSimLex999Words('../data/SimLex-999/SimLex-999.txt')
-    words += getWordSimilarity353Words('../data/WordSimilarity-353/combined.csv')
-    words += getRubensteinGoodenoughWords('../data/RG/EN-RG-65.txt')
+    words += getSyntacticWordRelationsWords('res/Syntactic-Word-Relations/questions-words.txt')
+    words += getSATWords('res/SAT-Questions/SAT-package-V3.txt')
+    words += getSimLex999Words('res/SimLex-999/SimLex-999.txt')
+    words += getWordSimilarity353Words('res/WordSimilarity-353/combined.csv')
+    words += getRubensteinGoodenoughWords('res/RG/EN-RG-65.txt')
 
     words = list(set(words))
     words = sorted(words)
 
     log.info('Found {0} words.', len(words))
 
-    whiteListPath = '../data/Tools/white_list.txt'
+    whiteListPath = 'res/Tools/white_list.txt'
     if os.path.exists(whiteListPath):
         os.remove(whiteListPath)
 
@@ -120,3 +120,13 @@ if __name__ == '__main__':
 
     log.lineBreak()
     log.info('White list has been saved.')
+
+
+def load():
+    whiteListFilePath = 'res/Tools/white_list.txt'
+
+    with open(whiteListFilePath, 'r') as whiteListFile:
+        text = whiteListFile.read()
+        whiteList = [word for word in re.split('\s+', text) if word]
+
+        return whiteList

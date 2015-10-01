@@ -8,6 +8,7 @@ import struct
 import io
 import collections
 import math
+import whitelist
 from datetime import timedelta
 
 
@@ -194,14 +195,6 @@ def loadContexts(contextsFilePath):
     return contexts
 
 
-def readWhiteList(whiteListFilePath):
-    with open(whiteListFilePath, 'r') as whiteListFile:
-        text = whiteListFile.read()
-        whiteList = [word for word in re.split('\s+', text) if word]
-
-        return whiteList
-
-
 pruningStepIndex = 0
 def pruneWordVocabulary(wordVocabulary, maxVocabularySize, whiteList):
     global pruningStepIndex
@@ -351,7 +344,7 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
         tempContextsFile.write(struct.pack('i', contextsCount))
         tempContextsFile.flush()
 
-    whiteList = readWhiteList(whiteListPath)
+    whiteList = whitelist.load()
     originalVocabularyLength = len(wordVocabulary)
     prunedWordVocabulary, wordIndexMap = pruneWordVocabulary(wordVocabulary, maxVocabularySize, whiteList)
 
@@ -434,12 +427,12 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
 
 if __name__ == '__main__':
-    inputDirectoryPath = '../data/Fake/Dumps'
+    inputDirectoryPath = '../data/Fake/Prepared'
     fileVocabularyPath = '../data/Fake/Processed/file_vocabulary.bin.gz'
     wordVocabularyPath = '../data/Fake/Processed/word_vocabulary.bin.gz'
     contextsPath = '../data/Fake/Processed/contexts.bin.gz'
     contextSize = 5
     maxVocabularySize = 6
-    whiteListPath = '../data/Fake/Tools/white_list.txt'
+    whiteListPath = '../data/Fake/white_list.txt'
 
     processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize, maxVocabularySize)
