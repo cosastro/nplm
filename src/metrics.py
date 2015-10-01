@@ -5,18 +5,10 @@ import scipy.stats
 import numpy
 import pandas
 import re
+import vectors
 
 
-def cosineSimilarity(vectorA, vectorB):
-    numerator = sum([a * b for a, b in zip(vectorA, vectorB)])
-    denumerator = math.sqrt(sum([a * a for a in vectorA]) * sum([b * b for b in vectorB]))
-
-    denumerator = 0.000000000001 if denumerator == 0 else denumerator
-
-    return numerator / denumerator
-
-
-def evaluateRubensteinGoodenough(wordIndexMap, embeddings):
+def rubensteinGoodenough(wordIndexMap, embeddings):
     rubensteinGoodenoughFilePath = 'res/RG/EN-RG-65.txt'
 
     with open(rubensteinGoodenoughFilePath) as file:
@@ -38,7 +30,7 @@ def evaluateRubensteinGoodenough(wordIndexMap, embeddings):
         word0Embedding = embeddings[word0Index]
         word1Embedding = embeddings[word1Index]
 
-        score = cosineSimilarity(word0Embedding, word1Embedding)
+        score = vectors.cosineSimilarity(word0Embedding, word1Embedding)
         scores.append(score)
 
     pearson, pearsonDeviation = scipy.stats.pearsonr(scores, targetScores)
@@ -49,7 +41,7 @@ def evaluateRubensteinGoodenough(wordIndexMap, embeddings):
     return rubensteinGoodenoughMetric
 
 
-def evaluateWordSimilarity353(wordIndexMap, embeddings):
+def wordSimilarity353(wordIndexMap, embeddings):
     wordSimilarity353FilePath = 'res/WordSimilarity-353/combined.csv'
     data = pandas.read_csv(wordSimilarity353FilePath)
 
@@ -67,7 +59,7 @@ def evaluateWordSimilarity353(wordIndexMap, embeddings):
         word0Embedding = embeddings[word0Index]
         word1Embedding = embeddings[word1Index]
 
-        score = cosineSimilarity(word0Embedding, word1Embedding)
+        score = vectors.cosineSimilarity(word0Embedding, word1Embedding)
         scores.append(score)
 
     pearson, pearsonDeviation = scipy.stats.pearsonr(scores, targetScores)
@@ -78,7 +70,7 @@ def evaluateWordSimilarity353(wordIndexMap, embeddings):
     return metric
 
 
-def evaluateSimLex999(wordIndexMap, embeddings):
+def simLex999(wordIndexMap, embeddings):
     simLex999FilePath = 'res/SimLex-999/SimLex-999.txt'
     data = pandas.read_csv(simLex999FilePath, sep='\t')
 
@@ -97,7 +89,7 @@ def evaluateSimLex999(wordIndexMap, embeddings):
             word0Embedding = embeddings[word0Index]
             word1Embedding = embeddings[word1Index]
 
-            score = cosineSimilarity(word0Embedding, word1Embedding)
+            score = vectors.cosineSimilarity(word0Embedding, word1Embedding)
             scores.append(score)
 
     pearson, pearsonDeviation = scipy.stats.pearsonr(scores, targetScores)
@@ -108,7 +100,7 @@ def evaluateSimLex999(wordIndexMap, embeddings):
     return simLex999Metric
 
 
-def evaluateSyntacticWordRelations(wordIndexMap, embeddings, maxWords=5):
+def syntacticWordRelations(wordIndexMap, embeddings, maxWords=10):
     syntWordRelFilePath = 'res/Syntactic-Word-Relations/questions-words.txt'
 
     with open(syntWordRelFilePath, 'r') as file:
@@ -131,13 +123,13 @@ def evaluateSyntacticWordRelations(wordIndexMap, embeddings, maxWords=5):
         word2Embedding = embeddings[word2Index]
         word3Embedding = embeddings[word3Index]
 
-        similarity01 = cosineSimilarity(word0Embedding, word1Embedding)
-        similarity23 = cosineSimilarity(word2Embedding, word3Embedding)
+        similarity01 = vectors.cosineSimilarity(word0Embedding, word1Embedding)
+        similarity23 = vectors.cosineSimilarity(word2Embedding, word3Embedding)
 
         score = 1
         minSimilarityDelta = abs(similarity01 - similarity23)
         for embedding in embeddings[:maxWords]:
-            similarity2N = cosineSimilarity(word2Embedding, embedding)
+            similarity2N = vectors.cosineSimilarity(word2Embedding, embedding)
             similarityDelta = abs(similarity01 - similarity2N)
 
             score = not (similarityDelta < minSimilarityDelta)
@@ -151,7 +143,7 @@ def evaluateSyntacticWordRelations(wordIndexMap, embeddings, maxWords=5):
     return syntacticWordRelationsMetric
 
 
-def evaluateSATQuestions(wordIndexMap, embeddings):
+def satQuestions(wordIndexMap, embeddings):
     satQuestionsFilePath = 'res/SAT-Questions/SAT-package-V3.txt'
 
     maxLineLength = 50
@@ -171,7 +163,7 @@ def evaluateSATQuestions(wordIndexMap, embeddings):
                         stemWord0Index = wordIndexMap[stemWord0]
                         stemWord1Index = wordIndexMap[stemWord1]
                         stemWord0Embedding, stemWord10Embedding = embeddings[stemWord0Index], embeddings[stemWord1Index]
-                        stemSimilarity = cosineSimilarity(stemWord0Embedding, stemWord10Embedding)
+                        stemSimilarity = vectors.cosineSimilarity(stemWord0Embedding, stemWord10Embedding)
 
                     choiceSimilarityDeltas = []
                     line = file.readline()
@@ -184,7 +176,7 @@ def evaluateSATQuestions(wordIndexMap, embeddings):
                             choiceWord0Index = wordIndexMap[choiceWord0]
                             choiceWord1Index = wordIndexMap[choiceWord1]
                             choiceWord0Embedding, choiceWord1Embedding = embeddings[choiceWord0Index], embeddings[choiceWord1Index]
-                            choiceSimilarity = cosineSimilarity(choiceWord0Embedding, choiceWord1Embedding)
+                            choiceSimilarity = vectors.cosineSimilarity(choiceWord0Embedding, choiceWord1Embedding)
 
                             choiceSimilarityDelta = abs(stemSimilarity - choiceSimilarity)
                             choiceSimilarityDeltas.append(choiceSimilarityDelta)
@@ -208,19 +200,19 @@ def main():
     embeddingsFilePath = '../data/Text8/Processed/vectors.bin'
     wordIndexMap, embeddings = kit.loadWord2VecEmbeddings(embeddingsFilePath)
 
-    rgMetric = evaluateRubensteinGoodenough(wordIndexMap, embeddings)
+    rgMetric = rubensteinGoodenough(wordIndexMap, embeddings)
     log.info('Rubenstein-Goodenough: {0:.2f}/10. State of the art: 9.15/10', rgMetric * 10)
 
-    wordSim353Metric = evaluateWordSimilarity353(wordIndexMap, embeddings)
+    wordSim353Metric = wordSimilarity353(wordIndexMap, embeddings)
     log.info('WordSimilarity-353: {0:.2f}/10. State of the art: 8.1/10', wordSim353Metric * 10)
 
-    simLex999Metric = evaluateSimLex999(wordIndexMap, embeddings)
+    simLex999Metric = simLex999(wordIndexMap, embeddings)
     log.info('SimLex-999: {0:.2f}/10. State of the art: 6.42/10', simLex999Metric * 10)
 
-    syntWordRelMetric = evaluateSyntacticWordRelations(wordIndexMap, embeddings)
+    syntWordRelMetric = syntacticWordRelations(wordIndexMap, embeddings)
     log.info('Syntactic word relations: {0:.2f}/10. State of the art: 10/10', syntWordRelMetric * 10)
 
-    satQuestionsMetric = evaluateSATQuestions(wordIndexMap, embeddings)
+    satQuestionsMetric = satQuestions(wordIndexMap, embeddings)
     log.info('SAT Questions: {0:.2f}/10. State of the art: 8.15/10', satQuestionsMetric * 10)
 
 if __name__ == '__main__':
