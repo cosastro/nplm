@@ -154,7 +154,7 @@ def evaluateSATQuestions(wordIndexMap, embeddings, filePath):
         line = file.readline()
         while line != '':
             if len(line) < maxLineLength:
-                match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]\:[nvar]', line)
+                match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]:[nvar]', line)
                 if match:
                     stemWord0, stemWord1 = match.group('word0'), match.group('word1')
                     validSample = stemWord0 in wordIndexMap and stemWord1 in wordIndexMap
@@ -167,7 +167,7 @@ def evaluateSATQuestions(wordIndexMap, embeddings, filePath):
 
                     choiceSimilarityDeltas = []
                     line = file.readline()
-                    match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]\:[nvar]', line)
+                    match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]:[nvar]', line)
                     while match:
                         choiceWord0, choiceWord1 = match.group('word0'), match.group('word1')
                         validSample = validSample and choiceWord0 in wordIndexMap and choiceWord1 in wordIndexMap
@@ -182,7 +182,7 @@ def evaluateSATQuestions(wordIndexMap, embeddings, filePath):
                             choiceSimilarityDeltas.append(choiceSimilarityDelta)
 
                         line = file.readline()
-                        match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]\:[nvar]', line)
+                        match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]:[nvar]', line)
 
                     if validSample:
                         choice = numpy.argmin(choiceSimilarityDeltas)
