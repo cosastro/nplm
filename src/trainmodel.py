@@ -2,18 +2,21 @@ import parameters
 import collections
 
 
-def trainModel():
-    fileVocabularyPath = '../data/Fake/Processed/file_vocabulary.bin.gz'
+def trainModel(fileVocabularyPath, wordVocabularyPath, contextsPath):
+    fileVocabularySize = parameters.getFileVocabularySize(fileVocabularyPath)
+    print 'File vocabulary size: {0}.'.format(fileVocabularySize)
+
     fileVocabulary = parameters.loadFileVocabulary(fileVocabularyPath)
     fileIndexVocabulary = [(value, key) for key, value in fileVocabulary.items()]
     fileIndexVocabulary = collections.OrderedDict(fileIndexVocabulary)
 
-    wordVocabularyPath = '../data/Fake/Processed/word_vocabulary.bin.gz'
+    fileVocabularySize = parameters.getWordVocabularySize(wordVocabularyPath)
+    print 'Word vocabulary size: {0}.'.format(fileVocabularySize)
+
     wordVocabulary = parameters.loadWordVocabulary(wordVocabularyPath)
     wordIndexVocabulary = [(value[0], key) for key, value in wordVocabulary.items()]
     wordIndexVocabulary = collections.OrderedDict(wordIndexVocabulary)
 
-    contextsPath = '../data/Fake/Processed/contexts.bin.gz'
     contextProvider = parameters.IndexContextProvider(contextsPath)
 
     print 'Contexts count: {0}'.format(contextProvider.contextsCount)
@@ -30,4 +33,8 @@ def trainModel():
 
 
 if __name__ == '__main__':
-    trainModel()
+    fileVocabularyPath = '../data/Fake/Processed/file_vocabulary.bin.gz'
+    wordVocabularyPath = '../data/Fake/Processed/word_vocabulary.bin.gz'
+    contextsPath = '../data/Fake/Processed/contexts.bin.gz'
+
+    trainModel(fileVocabularyPath, wordVocabularyPath, contextsPath)

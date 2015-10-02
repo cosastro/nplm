@@ -114,6 +114,14 @@ def loadFileVocabulary(vocabularyFilePath):
     return vocabulary
 
 
+def getFileVocabularySize(fileVocabularyPath):
+    with gzip.open(fileVocabularyPath, 'rb') as file:
+        itemsCount = file.read(4)
+        itemsCount = struct.unpack('i', itemsCount)[0]
+
+        return itemsCount
+
+
 def dumpWordVocabulary(vocabulary, vocabularyFilePath):
     if os.path.exists(vocabularyFilePath):
         os.remove(vocabularyFilePath)
@@ -172,41 +180,9 @@ def loadWordVocabulary(vocabularyFilePath):
     return vocabulary
 
 
-def dumpEmbeddings(embeddings, embeddingsFilePath):
-    with open(embeddingsFilePath, 'w') as embeddingsFile:
-        embedding = embeddingsFile.readall()
-        return embedding
+def getWordVocabularySize(wordVocabularyPath):
+    with gzip.open(wordVocabularyPath, 'rb') as file:
+        itemsCount = file.read(4)
+        itemsCount = struct.unpack('i', itemsCount)[0]
 
-
-def loadEmbeddings(embeddingsFilePath):
-    with open(embeddingsFilePath) as embeddingsFile:
-        embedding = embeddingsFile.readall()
-        return embedding
-
-
-def loadContexts(contextsFilePath):
-    contexts = []
-
-    with gzip.open(contextsFilePath, 'rb') as file:
-        contextsCount = file.read(4)
-        contextsCount = struct.unpack('i', contextsCount)[0]
-
-        contextSize = file.read(4)
-        contextSize = struct.unpack('i', contextSize)[0]
-
-        contextSize += 1 # to include file index that preceeds context itself
-
-        format = '{0}i'.format(contextSize)
-
-        for contextIndex in range(0, contextsCount):
-            context = file.read(contextSize * 4)
-            context = struct.unpack(format, context)
-
-            contexts.append(context)
-
-            contextIndex += 1
-            log.progress('Loading contexts: {0:.3f}%.', contextIndex, contextsCount)
-
-        log.lineBreak()
-
-    return contexts
+        return itemsCount
