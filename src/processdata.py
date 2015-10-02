@@ -13,7 +13,7 @@ import parameters
 from datetime import timedelta
 
 
-class ContextProvider:
+class WordContextProvider:
     def __init__(self, textFilePath):
         if textFilePath.endswith('gz'):
             self.textFile = gzip.open(textFilePath)
@@ -151,6 +151,9 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
     if os.path.exists(contextsPath):
         os.remove(contextsPath)
 
+    fileContextSize = 1
+    wordContextSize = contextSize - fileContextSize
+
     fileVocabulary = collections.OrderedDict()
     wordVocabulary = collections.OrderedDict()
 
@@ -165,17 +168,18 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
         pathName = inputDirectoryPath + '/*/*.txt.gz'
         textFilePaths = glob.glob(pathName)[:100]
+        textFilePaths = sorted(textFilePaths)
         textFileCount = len(textFilePaths)
         startTime = time.time()
 
-        contextFormat = '{0}i'.format(contextSize + 1)
+        contextFormat = '{0}i'.format(contextSize)
         contextsCount = 0
 
         for textFileIndex, textFilePath in enumerate(textFilePaths):
             fileVocabulary[textFilePath] = textFileIndex
 
-            contextProvider = ContextProvider(textFilePath)
-            for wordContext in contextProvider.next(contextSize):
+            contextProvider = WordContextProvider(textFilePath)
+            for wordContext in contextProvider.next(wordContextSize):
                 for word in wordContext:
                     if word not in wordVocabulary:
                         wordVocabulary[word] = (len(wordVocabulary), 1)
@@ -222,8 +226,8 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
         contextsCount = struct.unpack('i', contextsCount)[0]
         contextSize = struct.unpack('i', contextSize)[0]
 
-        format = '{0}i'.format(contextSize + 1) # plus one spot for file index
-        bufferSize = (contextSize + 1) * 4
+        format = '{0}i'.format(contextSize) # plus one spot for file index
+        bufferSize = (contextSize) * 4
         prunedContextsCount = 0
         with open(uncompressedPrunedContextsPath, 'wb+') as uncompressedPrunedContexts:
             uncompressedPrunedContexts.write(struct.pack('i', 0)) # placeholder for contexts count
@@ -245,10 +249,10 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
                     uncompressedPrunedContexts.write(buffer)
 
                 contextIndex += 1
-                log.progress('Pruning contexts: {0:.3f}%. Pruned contexts: {1}. Original contexts: {2}',
+                log.progress('Pruning contexts: {0:.3f}%. {1} contexts pruned out of {2}.',
                              contextIndex,
                              contextsCount,
-                             prunedContextsCount,
+                             contextsCount - prunedContextsCount,
                              contextsCount)
 
             log.lineBreak()
@@ -264,8 +268,8 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
         contextsCount = struct.unpack('i', contextsCount)[0]
         contextSize = struct.unpack('i', contextSize)[0]
 
-        format = '{0}i'.format(contextSize + 1) # plus one spot for file index
-        bufferSize = (contextSize + 1) * 4
+        format = '{0}i'.format(contextSize) # plus one spot for file index
+        bufferSize = (contextSize) * 4
         with gzip.open(contextsPath, 'wb+') as contextsFile:
             contextsFile.write(struct.pack('i', contextsCount))
             contextsFile.write(struct.pack('i', contextSize))
@@ -294,8 +298,8 @@ if __name__ == '__main__':
     fileVocabularyPath = '../data/Fake/Processed/file_vocabulary.bin.gz'
     wordVocabularyPath = '../data/Fake/Processed/word_vocabulary.bin.gz'
     contextsPath = '../data/Fake/Processed/contexts.bin.gz'
-    contextSize = 5
-    maxVocabularySize = 6
+    contextSize = 7
+    maxVocabularySize = 162
     whiteListPath = '../data/Fake/white_list.txt'
 
     processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize, maxVocabularySize)
