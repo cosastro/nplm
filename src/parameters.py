@@ -198,3 +198,39 @@ def getWordVocabularySize(wordVocabularyPath):
         itemsCount = struct.unpack('i', itemsCount)[0]
 
         return itemsCount
+
+
+def dumpEmbeddings(embeddings, embeddingsFilePath):
+    if os.path.exists(embeddingsFilePath):
+        os.remove(embeddingsFilePath)
+
+    wordVocabularySize, embeddingSize = embeddings.shape
+
+    with gzip.open(embeddingsFilePath, 'w') as file:
+        file.write(struct.pack('<i', wordVocabularySize))
+        file.write(struct.pack('<i', embeddingSize))
+
+        format = '{0}f'.format(embeddingSize)
+        for wordIndex in range(0, wordVocabularySize):
+            wordEmbedding = embeddings[wordIndex]
+            wordEmbedding = struct.pack(format, *wordEmbedding)
+
+            file.write(wordEmbedding)
+
+
+def loadEmbeddings(embeddingsFilePath):
+    with gzip.open(embeddingsFilePath, 'rb') as file:
+        wordVocabularySize = file.read(4)
+        wordVocabularySize = struct.unpack('<i', wordVocabularySize)[0]
+
+        embeddingSize = file.read(4)
+        embeddingSize = struct.unpack('<i', embeddingSize)[0]
+
+        embeddings = np.empty((wordVocabularySize, embeddingSize))
+
+        format = '{0}f'.format(embeddingSize)
+        for wordIndex in range(0, wordVocabularySize):
+            embedding = file.read(embeddingSize * 4)
+            embedding = struct.unpack(format, embedding)[0]
+
+    return embeddings

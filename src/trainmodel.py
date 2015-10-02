@@ -1,48 +1,34 @@
 import parameters
 import collections
+import vectors
+import log
 
 
-def trainModel(fileVocabularyPath, wordVocabularyPath, contextsPath, superBatchSize, miniBatchSize):
+def trainModel(fileVocabularyPath, wordVocabularyPath, contextsPath, superBatchSize, miniBatchSize, embeddingsPath):
     fileVocabularySize = parameters.getFileVocabularySize(fileVocabularyPath)
-    print 'File vocabulary size: {0}.'.format(fileVocabularySize)
-
-    fileVocabulary = parameters.loadFileVocabulary(fileVocabularyPath)
-    fileIndexVocabulary = [(value, key) for key, value in fileVocabulary.items()]
-    fileIndexVocabulary = collections.OrderedDict(fileIndexVocabulary)
-
-    fileVocabularySize = parameters.getWordVocabularySize(wordVocabularyPath)
-    print 'Word vocabulary size: {0}.'.format(fileVocabularySize)
-
-    wordVocabulary = parameters.loadWordVocabulary(wordVocabularyPath)
-    wordIndexVocabulary = [(value[0], key) for key, value in wordVocabulary.items()]
-    wordIndexVocabulary = collections.OrderedDict(wordIndexVocabulary)
+    wordVocabularySize = parameters.getWordVocabularySize(wordVocabularyPath)
 
     contextProvider = parameters.IndexContextProvider(contextsPath)
-
-    print 'Contexts count: {0}'.format(contextProvider.contextsCount)
-    print 'Context size: {0}'.format(contextProvider.contextSize)
 
     maxiBatchesCount = contextProvider.contextsCount / superBatchSize + 1
     for superBatchIndex in xrange(0, maxiBatchesCount):
         contextSuperBatch = contextProvider[superBatchIndex * superBatchSize:(superBatchIndex + 1) * superBatchSize]
 
         miniBatchesCount = len(contextSuperBatch) / miniBatchSize + 1
-        print '{0}'.format(len(contextSuperBatch))
-
         for miniBatchIndex in xrange(0, miniBatchesCount):
             contextMiniBatch = contextSuperBatch[miniBatchIndex * miniBatchSize:(miniBatchIndex + 1) * miniBatchSize]
 
-            if len(contextMiniBatch) > 0:
-                print '\t{0}'.format(len(contextMiniBatch))
-
             for context in contextMiniBatch:
-                fileIndex = context[0]
-                wordIndices = context[1:]
+                print context
 
-                file = fileIndexVocabulary[fileIndex]
-                words = map(lambda wordIndex: wordIndexVocabulary[wordIndex], wordIndices)
+    return None, None, None
 
-                print '\t\t{0} {1}'.format(file, words)
+
+def similarity(left, right, wordVocabulary, embeddings):
+    leftEmbedding = embeddings[wordVocabulary[left]]
+    rightEmbedding = embeddings[wordVocabulary[right]]
+
+    return vectors.cosineSimilarity(leftEmbedding, rightEmbedding)
 
 
 if __name__ == '__main__':
@@ -51,5 +37,17 @@ if __name__ == '__main__':
     contextsPath = '../data/Fake/Processed/contexts.bin.gz'
     superBatchSize = 30
     miniBatchSize = 10
+    embeddingsPath = '../data/Fake/Processed/embeddings.bin'
 
-    trainModel(fileVocabularyPath, wordVocabularyPath, contextsPath, superBatchSize, miniBatchSize)
+    wight, bias, embeddings = trainModel(
+        fileVocabularyPath,
+        wordVocabularyPath,
+        contextsPath,
+        superBatchSize,
+        miniBatchSize,
+        embeddingsPath)
+
+    wordVocabulary = parameters.loadWordVocabulary(wordVocabularyPath)
+
+    log.info('A & B: {0}', similarity('A', 'B', wordVocabulary, embeddings))
+    log.info('A & a: {0}', similarity('A', 'a', wordVocabulary, embeddings))
