@@ -22,36 +22,27 @@ def trainModel(fileVocabularyPath, wordVocabularyPath, contextsPath, superBatchS
     print 'Contexts count: {0}'.format(contextProvider.contextsCount)
     print 'Context size: {0}'.format(contextProvider.contextSize)
 
-    for context in contextProvider[0:5]:
-        fileIndex = context[0]
-        wordIndices = context[1:]
+    maxiBatchesCount = contextProvider.contextsCount / superBatchSize + 1
+    for superBatchIndex in xrange(0, maxiBatchesCount):
+        contextSuperBatch = contextProvider[superBatchIndex * superBatchSize:(superBatchIndex + 1) * superBatchSize]
 
-        file = fileIndexVocabulary[fileIndex]
-        words = map(lambda wordIndex: wordIndexVocabulary[wordIndex], wordIndices)
+        miniBatchesCount = len(contextSuperBatch) / miniBatchSize + 1
+        print '{0}'.format(len(contextSuperBatch))
 
-        print '\t{0} {1}'.format(file, words)
+        for miniBatchIndex in xrange(0, miniBatchesCount):
+            contextMiniBatch = contextSuperBatch[miniBatchIndex * miniBatchSize:(miniBatchIndex + 1) * miniBatchSize]
 
-    # maxiBatchesCount = contextProvider.contextsCount / superBatchSize + 1
-    # for superBatchIndex in xrange(0, maxiBatchesCount):
-    #     contextSuperBatch = contextProvider[superBatchIndex * superBatchSize:(superBatchIndex + 1) * superBatchSize]
-    #
-    #     miniBatchesCount = len(contextSuperBatch) / miniBatchSize + 1
-    #     print '{0}'.format(len(contextSuperBatch))
-    #
-    #     for miniBatchIndex in xrange(0, miniBatchesCount):
-    #         contextMiniBatch = contextSuperBatch[miniBatchIndex * miniBatchSize:(miniBatchIndex + 1) * miniBatchSize]
-    #
-    #         if len(contextMiniBatch) > 0:
-    #             print '\t{0}'.format(len(contextMiniBatch))
-    #
-    #         for context in contextMiniBatch:
-    #             fileIndex = context[0]
-    #             wordIndices = context[1:]
-    #
-    #             file = fileIndexVocabulary[fileIndex]
-    #             words = map(lambda wordIndex: wordIndexVocabulary[wordIndex], wordIndices)
-    #
-    #             print '\t\t{0} {1}'.format(file, words)
+            if len(contextMiniBatch) > 0:
+                print '\t{0}'.format(len(contextMiniBatch))
+
+            for context in contextMiniBatch:
+                fileIndex = context[0]
+                wordIndices = context[1:]
+
+                file = fileIndexVocabulary[fileIndex]
+                words = map(lambda wordIndex: wordIndexVocabulary[wordIndex], wordIndices)
+
+                print '\t\t{0} {1}'.format(file, words)
 
 
 if __name__ == '__main__':
