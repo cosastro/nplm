@@ -4,6 +4,7 @@ import io
 import log
 import struct
 import collections
+import numpy
 
 
 class IndexContextProvider():
@@ -11,8 +12,6 @@ class IndexContextProvider():
         self.contextsFilePath = contextsFilePath
         self.contextsFile = gzip.open(self.contextsFilePath, 'rb')
         self.contextsCount, self.contextSize = self.readContextsShape()
-        self.bufferSize = self.contextSize * 4
-        self.contextFormat = '{0}i'.format(self.contextSize)
 
 
     def __getitem__(self, item):
@@ -20,9 +19,10 @@ class IndexContextProvider():
             start = item.start or 0
             stop = item.stop if item.stop <= self.contextsCount else self.contextsCount
             step = item.step or 1
-            return [self[i] for i in xrange(start, stop, step)]
 
-        return self.getContext(item)
+            return self.getContexts(start, stop, step)
+
+        return self.getContexts(item, item + 1, 1)
 
 
     def __del__(self):
@@ -41,15 +41,27 @@ class IndexContextProvider():
         return self.contextsCount, self.contextSize
 
 
-    def getContext(self, contextIndex):
-        contextPosition = contextIndex * self.bufferSize + 8 # 8 for contextsCount + contextSize
+    def getContexts(self, start, stop, step):
+        if step == 1:
+            count = stop - start
+            contextBufferSize = self.contextSize * 4
+            contextsBufferSize = count * contextBufferSize
+            startPosition = start * contextBufferSize + 8 # 8 for contextsCount + contextSize
 
-        self.contextsFile.seek(contextPosition, io.SEEK_SET)
+            self.contextsFile.seek(startPosition, io.SEEK_SET)
+            contextsBuffer = self.contextsFile.read(contextsBufferSize)
 
-        buffer = self.contextsFile.read(self.bufferSize)
-        context = struct.unpack(self.contextFormat, buffer)
+            contextFormat = '{0}i'.format(self.contextSize * count)
+            contexts = struct.unpack(contextFormat, contextsBuffer)
 
-        return context
+            contexts = numpy.reshape(contexts, (count, self.contextSize))
+        else:
+            contexts = []
+            for contextIndex in xrange(start, stop, step):
+                context = self[contextIndex][0]
+                contexts.append(context)
+
+        return contexts
 
 
 class EmbeddingsProvider():
