@@ -201,15 +201,33 @@ def dumpEmbeddings(embeddings, embeddingsFilePath):
     if os.path.exists(embeddingsFilePath):
         os.remove(embeddingsFilePath)
 
-    wordVocabularySize, embeddingSize = embeddings.shape
+    wordsCount, embeddingSize = embeddings.shape
 
     with gzip.open(embeddingsFilePath, 'w') as file:
-        file.write(struct.pack('<i', wordVocabularySize))
+        file.write(struct.pack('<i', wordsCount))
         file.write(struct.pack('<i', embeddingSize))
 
         format = '{0}f'.format(embeddingSize)
-        for wordIndex in range(0, wordVocabularySize):
+        for wordIndex in range(0, wordsCount):
             wordEmbedding = embeddings[wordIndex]
             wordEmbedding = struct.pack(format, *wordEmbedding)
 
             file.write(wordEmbedding)
+
+
+def loadEmbeddigns(embeddingsFilePath):
+    with gzip.open(embeddingsFilePath, 'rb') as file:
+        wordsCount = file.read(4)
+        wordsCount = struct.unpack('<i', wordsCount)[0]
+
+        embeddingSize = file.read(4)
+        embeddingSize = struct.unpack('<i', embeddingSize)[0]
+
+        embeddings = np.empty((wordsCount, embeddingSize))
+
+        format = '{0}f'.format(embeddingSize)
+        for wordIndex in range(0, wordsCount):
+            wordEmbedding = file.read(embeddingSize * 4)
+            wordEmbedding = struct.unpack(format, wordEmbedding)[0]
+
+        return embeddings
