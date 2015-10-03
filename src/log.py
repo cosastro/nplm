@@ -1,4 +1,5 @@
 import sys
+from datetime import timedelta
 
 
 def info(message, *args):
@@ -32,21 +33,7 @@ def progress(messageFormat, index, count, *args):
 
 
 def delta(seconds):
-        seconds = int(seconds)
-        if seconds == 0:
-            return '0 seconds'
+        deltaString = str(timedelta(seconds=seconds))
+        deltaString = deltaString.split('.')[0]
 
-        periods = [('day', 60*60*24), ('hour', 60*60), ('minute', 60), ('second', 1)]
-
-        strings=[]
-
-        for periodName, periodSeconds in periods:
-            if seconds >= periodSeconds:
-                periodValue , seconds = divmod(seconds, periodSeconds)
-
-                if periodValue == 1:
-                    strings.append("%s %s" % (periodValue, periodName))
-                else:
-                    strings.append("%s %ss" % (periodValue, periodName))
-
-        return ", ".join(strings)
+        return deltaString

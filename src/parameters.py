@@ -10,8 +10,7 @@ import numpy
 class IndexContextProvider():
     def __init__(self, contextsFilePath):
         self.contextsFilePath = contextsFilePath
-        self.contextsFile = gzip.open(self.contextsFilePath, 'rb')
-        self.contextsCount, self.contextSize = self.readContextsShape()
+        self.contextsCount, self.contextSize = self.getContextsShape()
 
 
     def __getitem__(self, item):
@@ -25,36 +24,32 @@ class IndexContextProvider():
         return self.getContexts(item, item + 1, 1)
 
 
-    def __del__(self):
-        self.contextsFile.close()
+    def getContextsShape(self):
+        with gzip.open(self.contextsFilePath) as contextsFile:
+            contextsCount = contextsFile.read(4)
+            contextSize = contextsFile.read(4)
 
+            contextsCount = struct.unpack('i', contextsCount)[0]
+            contextSize = struct.unpack('i', contextSize)[0]
 
-    def readContextsShape(self):
-        self.contextsFile.seek(0, io.SEEK_SET)
-
-        contextsCount = self.contextsFile.read(4)
-        contextSize = self.contextsFile.read(4)
-
-        self.contextsCount = struct.unpack('i', contextsCount)[0]
-        self.contextSize = struct.unpack('i', contextSize)[0]
-
-        return self.contextsCount, self.contextSize
+            return contextsCount, contextSize
 
 
     def getContexts(self, start, stop, step):
         if step == 1:
-            count = stop - start
-            contextBufferSize = self.contextSize * 4
-            contextsBufferSize = count * contextBufferSize
-            startPosition = start * contextBufferSize + 8 # 8 for contextsCount + contextSize
+            with gzip.open(self.contextsFilePath) as contextsFile:
+                count = stop - start
+                contextBufferSize = self.contextSize * 4
+                contextsBufferSize = count * contextBufferSize
+                startPosition = start * contextBufferSize + 8 # 8 for contextsCount + contextSize
 
-            self.contextsFile.seek(startPosition, io.SEEK_SET)
-            contextsBuffer = self.contextsFile.read(contextsBufferSize)
+                contextsFile.seek(startPosition, io.SEEK_SET)
+                contextsBuffer = contextsFile.read(contextsBufferSize)
 
-            contextFormat = '{0}i'.format(self.contextSize * count)
-            contexts = struct.unpack(contextFormat, contextsBuffer)
+                contextFormat = '{0}i'.format(self.contextSize * count)
+                contexts = struct.unpack(contextFormat, contextsBuffer)
 
-            contexts = numpy.reshape(contexts, (count, self.contextSize))
+                contexts = numpy.reshape(contexts, (count, self.contextSize))
         else:
             contexts = []
             for contextIndex in xrange(start, stop, step):
