@@ -21,6 +21,7 @@ def progress(messageFormat, index, count, *args):
     index = float(index)
     count = float(count)
     percentage = 100 * index / count
+    percentage = min(100, percentage)
     args = [percentage] + list(args)
 
     messageFormat = messageFormat.format(*args)
