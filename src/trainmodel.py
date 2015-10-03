@@ -38,7 +38,7 @@ class ProbabilisticLanguageModel():
 
         cost = -T.mean(T.log(probabilities)[T.arange(targetProbability.shape[0]), targetProbability])
 
-        learningRate = T.fscalar('learningRate')
+        learningRate = T.scalar('learningRate', dtype=floatX)
 
         gradients = [T.grad(cost, wrt=p) for p in parameters]
         updates = [(p, p - learningRate * g) for p, g in zip(parameters, gradients)]
@@ -154,11 +154,8 @@ if __name__ == '__main__':
     wordVocabularySize = parameters.getWordVocabularySize(wordVocabularyPath)
     contextProvider = parameters.IndexContextProvider(contextsPath)
     contextSize = contextProvider.contextSize
-    embeddingSize = 10
-    learningRate = 0.07
-    epochs = 1000
 
-    model = ProbabilisticLanguageModel(fileVocabularySize, wordVocabularySize, contextSize - 2, embeddingSize)
+    model = ProbabilisticLanguageModel(fileVocabularySize, wordVocabularySize, contextSize - 2, 10)
 
     model = trainModel(
         fileVocabulary,

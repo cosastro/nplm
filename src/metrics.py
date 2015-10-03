@@ -6,6 +6,8 @@ import numpy
 import pandas
 import re
 import vectors
+import pandas
+import os
 
 
 def rubensteinGoodenough(wordIndexMap, embeddings):
@@ -208,7 +210,24 @@ def validate(wordVocabulary, wordEmbeddigs):
 
 
 def dump(epoch, superBatchIndex, rg, sim353, simLex999, syntRel, sat, total, metricsPath):
-    return 0, 0, 0, 0, 0, 0
+    metrics = [{
+        'epoch': epoch,
+        'superBatchIndex': superBatchIndex,
+        'rg': rg,
+        'sim353': sim353,
+        'simLex999': simLex999,
+        'syntRel': syntRel,
+        'sat': sat,
+        'total': total
+    }]
+
+    if os.path.exists(metricsPath):
+        with open(metricsPath, 'a') as metricsFile:
+            metricsHistory = pandas.DataFrame.from_dict(metrics)
+            metricsHistory.to_csv(metricsFile, header=False)
+    else:
+        metricsHistory = pandas.DataFrame.from_dict(metrics)
+        metricsHistory.to_csv(metricsPath, header=True)
 
 
 def main():
