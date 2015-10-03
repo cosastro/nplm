@@ -94,7 +94,8 @@ class ProbabilisticLanguageModel():
 
 
     def dump(self, parametersPath, embeddingsPath):
-        pass
+        embeddings = self.wordEmbeddings.get_value()
+        parameters.dumpEmbeddings(embeddings, embeddingsPath)
 
 
 def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatchSize, miniBatchSize, parametersPath, embeddingsPath, learningRate, epochs, metricsPath):
