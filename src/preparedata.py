@@ -138,7 +138,7 @@ def prepareWikipediaDumps(inputDirectoryPath, outputDirectoryPath, cleanText=Tru
                      dumpsCount,
                      dumpName,
                      len(pages),
-                     timedelta(seconds=elapsed),
+                     log.delta(elapsed),
                      secondsPerFile)
 
     log.lineBreak()

@@ -196,6 +196,21 @@ def satQuestions(wordIndexMap, embeddings):
     return metric
 
 
+def validate(wordVocabulary, wordEmbeddigs):
+    rg = 0
+    sim353 = 0
+    simLex999 = 0
+    syntRel = 0
+    sat = 0
+    total = 0
+
+    return rg, sim353, simLex999, syntRel, sat, total
+
+
+def dump(superBatchIndex, miniBatchIndex, epoch, rg, sim353, simLex999, syntRel, sat, total, metricsPath):
+    pass
+
+
 def main():
     embeddingsFilePath = '../data/Text8/Processed/vectors.bin'
     wordIndexMap, embeddings = kit.loadWord2VecEmbeddings(embeddingsFilePath)
@@ -214,6 +229,7 @@ def main():
 
     satQuestionsMetric = satQuestions(wordIndexMap, embeddings)
     log.info('SAT Questions: {0:.2f}/10. State of the art: 8.15/10', satQuestionsMetric * 10)
+
 
 if __name__ == '__main__':
     main()

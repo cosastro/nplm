@@ -29,3 +29,24 @@ def progress(messageFormat, index, count, *args):
 
     sys.stdout.write(messageFormat)
     sys.stdout.flush()
+
+
+def delta(seconds):
+        seconds = int(seconds)
+        if seconds == 0:
+            return '0 seconds'
+
+        periods = [('day', 60*60*24), ('hour', 60*60), ('minute', 60), ('second', 1)]
+
+        strings=[]
+
+        for periodName, periodSeconds in periods:
+            if seconds >= periodSeconds:
+                periodValue , seconds = divmod(seconds, periodSeconds)
+
+                if periodValue == 1:
+                    strings.append("%s %s" % (periodValue, periodName))
+                else:
+                    strings.append("%s %ss" % (periodValue, periodName))
+
+        return ", ".join(strings)

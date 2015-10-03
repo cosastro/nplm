@@ -1,11 +1,13 @@
 from numpy.random import randn as random
 
+import time
 import theano
 import theano.tensor as T
 
 import parameters
 import vectors
 import log
+import metrics
 
 
 class ProbabilisticLanguageModel():
@@ -13,19 +15,18 @@ class ProbabilisticLanguageModel():
         floatX = theano.config.floatX
 
         defaultWordEmbeddings = random(wordVocabularySize, embeddingSize).astype(dtype=floatX)
-        self.embeddings = theano.shared(defaultWordEmbeddings, name='wordEmbeddings', borrow=True)
-
         defaultWeight = random(contextSize * embeddingSize, wordVocabularySize).astype(dtype=floatX)
-        self.weight = theano.shared(defaultWeight, name='weight', borrow=True)
-
         defaultBias = random(wordVocabularySize).astype(dtype=floatX)
+
+        self.wordEmbeddings = theano.shared(defaultWordEmbeddings, name='wordEmbeddings', borrow=True)
+        self.weight = theano.shared(defaultWeight, name='weight', borrow=True)
         self.bias = theano.shared(defaultBias, name='bias', borrow=True)
 
-        parameters = [self.embeddings, self.weight, self.bias]
+        parameters = [self.wordEmbeddings, self.weight, self.bias]
 
         contextIndices = T.imatrix('contextIndices')
 
-        context = self.embeddings[contextIndices]
+        context = self.wordEmbeddings[contextIndices]
         context = context.reshape((contextIndices.shape[0], contextSize * embeddingSize))
 
         probabilities = T.nnet.softmax(T.dot(context, self.weight) + self.bias)
@@ -45,22 +46,30 @@ class ProbabilisticLanguageModel():
         )
 
 
-    def train(self, trainingInput, trainingTargetOutput, learningRate, epochs):
-        for epoch in xrange(epochs):
-            self.trainModel(trainingInput, trainingTargetOutput, learningRate)
-
-        trainedEmbeddings = self.embeddings.get_value()
-
-        return trainedEmbeddings
+    def train(self, trainingInput, trainingTargetOutput, learningRate):
+        self.trainModel(trainingInput, trainingTargetOutput, learningRate)
 
 
-def trainModel(model, contextProvider, superBatchSize, miniBatchSize, embeddingsPath):
-    maxiBatchesCount = contextProvider.contextsCount / superBatchSize + 1
+    def getWordEmbeddings(self):
+        return self.wordEmbeddings.get_value()
 
-    for superBatchIndex in xrange(0, maxiBatchesCount):
+
+    def dump(self, parametersPath, embeddingsPath):
+        pass
+
+
+def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatchSize, miniBatchSize, parametersPath, embeddingsPath, learningRate, epochs, metricsPath):
+    superBatchesCount = contextProvider.contextsCount / superBatchSize + 1
+
+    startTime = time.time()
+    miniBatchesTotal = 0
+
+    for superBatchIndex in xrange(0, superBatchesCount):
         contextSuperBatch = contextProvider[superBatchIndex * superBatchSize:(superBatchIndex + 1) * superBatchSize]
 
+        miniBatchStartTime = time.time()
         miniBatchesCount = len(contextSuperBatch) / miniBatchSize + 1
+
         for miniBatchIndex in xrange(0, miniBatchesCount):
             contextMiniBatch = contextSuperBatch[miniBatchIndex * miniBatchSize:(miniBatchIndex + 1) * miniBatchSize]
 
@@ -69,15 +78,35 @@ def trainModel(model, contextProvider, superBatchSize, miniBatchSize, embeddings
 
             fileIndices, wordIndices, targetWordIndices = contextMiniBatch[:,1], contextMiniBatch[:,1:-1], contextMiniBatch[:,-1]
 
-            model.train(wordIndices, targetWordIndices, 0.13, 1000)
+            miniBatchesTotal += 1
+            previousTotal = 0
 
-            log.progress('Training model: {0:.3f}%.',
-                         miniBatchIndex + maxiBatchesCount * superBatchIndex,
-                         maxiBatchesCount * miniBatchesCount)
+            for epoch in xrange(0, epochs):
+                model.train(wordIndices, targetWordIndices, learningRate)
+                wordEmbeddigs = model.getWordEmbeddings()
+
+                rg, sim353, simLex999, syntRel, sat, total = metrics.validate(wordVocabulary, wordEmbeddigs)
+
+                metrics.dump(superBatchIndex, miniBatchIndex, epoch, rg, sim353, simLex999, syntRel, sat, total, metricsPath)
+
+                if previousTotal < total:
+                    model.dump(parametersPath, embeddingsPath)
+
+                currentTime = time.time()
+                elapsed = currentTime - startTime
+                secondsPerSuperBatch = elapsed / (superBatchIndex + 1)
+                secondsPerMiniBatch = elapsed / miniBatchesTotal
+
+                log.progress('Training model: {0:.3f}%. Elapsed: {1}. ({2:.3f} sec/super batch). ({3:.3f} sec/mini batch).',
+                             miniBatchIndex + float(epoch)/epochs + superBatchesCount * superBatchIndex,
+                             superBatchesCount * miniBatchesCount,
+                             log.delta(elapsed),
+                             secondsPerSuperBatch,
+                             secondsPerMiniBatch)
 
     log.lineBreak()
 
-    return model.embeddings.get_value()
+    return model
 
 
 def similarity(left, right, wordVocabulary, embeddings):
@@ -94,27 +123,39 @@ if __name__ == '__main__':
     fileVocabularyPath = '../data/Fake/Processed/file_vocabulary.bin.gz'
     wordVocabularyPath = '../data/Fake/Processed/word_vocabulary.bin.gz'
     contextsPath = '../data/Fake/Processed/contexts.bin.gz'
-    superBatchSize = 30
-    miniBatchSize = 10
-    embeddingsPath = '../data/Fake/Processed/embeddings.bin'
+
+    fileVocabulary = parameters.loadFileVocabulary(fileVocabularyPath)
+    wordVocabulary = parameters.loadWordVocabulary(wordVocabularyPath)
 
     fileVocabularySize = parameters.getFileVocabularySize(fileVocabularyPath)
     wordVocabularySize = parameters.getWordVocabularySize(wordVocabularyPath)
     contextProvider = parameters.IndexContextProvider(contextsPath)
     contextSize = contextProvider.contextSize
     embeddingSize = 10
+    learningRate = 0.13
+    epochs = 1000
 
     model = ProbabilisticLanguageModel(fileVocabularySize, wordVocabularySize, contextSize - 2, embeddingSize)
-    embeddings = model.embeddings.get_value()
 
-    wordVocabulary = parameters.loadWordVocabulary(wordVocabularyPath)
+    wordEmbeddings = model.getWordEmbeddings()
+    log.info('A & B: {0}', similarity('A', 'B', wordVocabulary, wordEmbeddings))
+    log.info('B & C: {0}', similarity('B', 'C', wordVocabulary, wordEmbeddings))
+    log.info('C & D: {0}', similarity('C', 'D', wordVocabulary, wordEmbeddings))
 
-    log.info('A & B: {0}', similarity('A', 'B', wordVocabulary, embeddings))
-    log.info('B & C: {0}', similarity('B', 'C', wordVocabulary, embeddings))
-    log.info('C & D: {0}', similarity('C', 'D', wordVocabulary, embeddings))
+    model = trainModel(
+        fileVocabulary,
+        wordVocabulary,
+        contextProvider,
+        model,
+        superBatchSize = 30,
+        miniBatchSize = 10,
+        parametersPath = '../data/Fake/Processed/parameters.bin',
+        embeddingsPath = '../data/Fake/Processed/embeddings.bin',
+        learningRate = 0.13,
+        epochs = 1000,
+        metricsPath = '../data/Fake/Processed/metrics.csv')
 
-    embeddings = trainModel(model, contextProvider, superBatchSize, miniBatchSize, embeddingsPath)
-
-    log.info('A & B: {0}', similarity('A', 'B', wordVocabulary, embeddings))
-    log.info('B & C: {0}', similarity('B', 'C', wordVocabulary, embeddings))
-    log.info('C & D: {0}', similarity('C', 'D', wordVocabulary, embeddings))
+    wordEmbeddings = model.getWordEmbeddings()
+    log.info('A & B: {0}', similarity('A', 'B', wordVocabulary, wordEmbeddings))
+    log.info('B & C: {0}', similarity('B', 'C', wordVocabulary, wordEmbeddings))
+    log.info('C & D: {0}', similarity('C', 'D', wordVocabulary, wordEmbeddings))

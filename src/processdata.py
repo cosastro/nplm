@@ -201,7 +201,7 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
             log.progress('Reading contexts: {0:.3f}%. Elapsed: {1} ({2:.3f} sec/file). Vocabulary: {3}.',
                          textFileIndex + 1,
                          textFileCount,
-                         timedelta(seconds=elapsed),
+                         log.delta(elapsed),
                          secondsPerFile,
                          len(wordVocabulary))
 
