@@ -1,10 +1,57 @@
 from makeembeddings import *
 from processgooglenews import *
+from numpy.random import randn as random
 import theano
 import theano.tensor as T
 
 
-def train(vocabulary, trainingInput, trainingTargetOutput, defaultWordEmbeddings, learningRate=0.13, epochs=100):
+class ProbabilisticLanguageModel():
+    def __init__(self, fileVocabularySize, wordVocabularySize, contextSize, embeddingSize):
+        floatX = theano.config.floatX
+
+        defaultWordEmbeddings = random(wordVocabularySize, embeddingSize).astype(dtype=floatX)
+        self.embeddings = theano.shared(defaultWordEmbeddings, name='wordEmbeddings', borrow=True)
+
+        defaultWeight = random(contextSize * embeddingSize, wordVocabularySize).astype(dtype=floatX)
+        weight = theano.shared(defaultWeight, name='weight', borrow=True)
+
+        # defaultBias = random(wordVocabularySize).astype(dtype=floatX)
+        # bias = theano.shared(defaultBias, name='bias', borrow=True)
+
+        parameters = [self.embeddings, weight]
+
+        contextIndices = T.imatrix('contextIndices')
+
+        context = self.embeddings[contextIndices]
+        context = context.reshape((contextIndices.shape[0], contextSize * embeddingSize))
+
+        probabilities = T.nnet.softmax(T.dot(context, weight))
+        targetProbability = T.ivector('targetProbability')
+
+        cost = -T.mean(T.log(probabilities)[T.arange(targetProbability.shape[0]), targetProbability])
+
+        learningRate = T.fscalar('learningRate')
+
+        gradients = [T.grad(cost, wrt=p) for p in parameters]
+        updates = [(p, p - learningRate * g) for p, g in zip(parameters, gradients)]
+
+        self.trainModel = theano.function(
+            inputs=[contextIndices, targetProbability, learningRate],
+            outputs=cost,
+            updates=updates
+        )
+
+
+    def train(self, trainingInput, trainingTargetOutput, learningRate, epochs):
+        for epoch in xrange(epochs):
+            self.trainModel(trainingInput, trainingTargetOutput, learningRate)
+
+        trainedEmbeddings = self.embeddings.get_value()
+
+        return trainedEmbeddings
+
+
+def train_old(vocabulary, trainingInput, trainingTargetOutput, defaultWordEmbeddings, learningRate=0.13, epochs=100):
     floatX = theano.config.floatX
 
     contextSize = trainingInput.shape[1]
@@ -49,6 +96,19 @@ def train(vocabulary, trainingInput, trainingTargetOutput, defaultWordEmbeddings
     return trainedWordEmbeddings
 
 
+def train(vocabulary, trainingInput, trainingTargetOutput, defaultWordEmbeddings, learningRate=0.13, epochs=100):
+    fileVocabularySize = 0
+    wordVocabularySize = len(vocabulary)
+    contextSize = 4
+    embeddingSize = 10
+
+    model = ProbabilisticLanguageModel(fileVocabularySize, wordVocabularySize, contextSize, embeddingSize)
+
+    trainedEmbeddings = model.train(trainingInput, trainingTargetOutput, learningRate, epochs)
+
+    return trainedEmbeddings
+
+
 def sim(left, right, vocabulary, wordEmbeddings):
     leftVector = wordEmbeddings[vocabulary[left]]
     rightVector = wordEmbeddings[vocabulary[right]]
@@ -63,17 +123,26 @@ if __name__ == '__main__':
     A = lambda x, dtype=None: np.asarray(x, dtype=dtype)
 
     vocabulary, windows = processPage(pageFilePath, bufferSize=100, windowSize=5)
-    wordEmbeddings = makeEmbeddings(vocabulary, embeddingSize=2)
-
-    vocabulary = vocabulary
     windows = A(windows)
     input, targetOutput = A(windows[:,:-1], 'int32'), A(windows[:,-1], 'int32')
-    wordEmbeddings = A(wordEmbeddings)
 
-    print 'A & a: {0}'.format(sim('A', 'a', vocabulary, wordEmbeddings))
-    print 'A & e: {0}'.format(sim('A', 'e', vocabulary, wordEmbeddings))
+    fileVocabularySize = 0
+    wordVocabularySize = len(vocabulary)
+    contextSize = 4
+    embeddingSize = 500
 
-    trainedWordEmbeddings = train(vocabulary, input, targetOutput, wordEmbeddings, learningRate=0.03, epochs=1000)
+    model = ProbabilisticLanguageModel(fileVocabularySize, wordVocabularySize, contextSize, embeddingSize)
 
-    print 'A & a: {0}'.format(sim('A', 'a', vocabulary, trainedWordEmbeddings))
-    print 'A & e: {0}'.format(sim('A', 'e', vocabulary, trainedWordEmbeddings))
+    wordEmbeddings = model.embeddings.get_value()
+
+    pairs = [('A', 'a'), ('B', 'b'), ('C', 'c'), ('D', 'd'), ('E', 'e'), ('F', 'f')]
+
+    print '-->Before training'
+    for left, right in pairs:
+        print '{0} & {1}: {2}'.format(left, right, sim(left, right, vocabulary, wordEmbeddings))
+
+    trainedEmbeddings = model.train(input, targetOutput, learningRate=0.01, epochs=1000)
+
+    print '-->After training'
+    for left, right in pairs:
+        print '{0} & {1}: {2}'.format(left, right, sim(left, right, vocabulary, trainedEmbeddings))
