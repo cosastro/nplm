@@ -84,10 +84,9 @@ class ProbabilisticLanguageModel():
 
 def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatchSize, miniBatchSize, parametersPath, embeddingsPath, learningRate, epochs, metricsPath):
     superBatchesCount = contextProvider.contextsCount / superBatchSize + 1
+    startTime = time.time()
 
     for epoch in xrange(0, epochs):
-
-        startTime = time.time()
         for superBatchIndex in xrange(0, superBatchesCount):
             contextSuperBatch = contextProvider[superBatchIndex * superBatchSize:(superBatchIndex + 1) * superBatchSize]
 
@@ -106,11 +105,11 @@ def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatc
 
             currentTime = time.time()
             elapsed = currentTime - startTime
-            secondsPerSuperBatch = elapsed / (superBatchIndex + 1)
+            secondsPerSuperBatch = elapsed / (epoch + 1)
 
-            log.progress('Training model: {0:.3f}%. Elapsed: {1}. ({2:.3f} sec/super batch).',
-                         superBatchIndex + 1,
-                         superBatchesCount,
+            log.progress('Training model: {0:.3f}%. Elapsed: {1}. ({2:.3f} sec/epoch).',
+                         epoch + 1,
+                         epochs,
                          log.delta(elapsed),
                          secondsPerSuperBatch)
 
@@ -142,7 +141,7 @@ if __name__ == '__main__':
     contextProvider = parameters.IndexContextProvider(contextsPath)
     contextSize = contextProvider.contextSize
     embeddingSize = 10
-    learningRate = 0.13
+    learningRate = 0.07
     epochs = 1000
 
     model = ProbabilisticLanguageModel(fileVocabularySize, wordVocabularySize, contextSize - 2, embeddingSize)
