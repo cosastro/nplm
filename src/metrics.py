@@ -207,7 +207,7 @@ def validate(wordVocabulary, wordEmbeddigs):
     return rg, sim353, simLex999, syntRel, sat, total
 
 
-def dump(superBatchIndex, miniBatchIndex, epoch, rg, sim353, simLex999, syntRel, sat, total, metricsPath):
+def dump(superBatchIndex, epoch, rg, sim353, simLex999, syntRel, sat, total, metricsPath):
     pass
 
 

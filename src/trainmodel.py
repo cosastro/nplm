@@ -1,5 +1,6 @@
 from numpy.random import randn as random
 
+import numpy
 import time
 import theano
 import theano.tensor as T
@@ -13,6 +14,7 @@ import metrics
 class ProbabilisticLanguageModel():
     def __init__(self, fileVocabularySize, wordVocabularySize, contextSize, embeddingSize):
         floatX = theano.config.floatX
+        empty = lambda *shape: numpy.empty(shape, dtype='int32')
 
         defaultWordEmbeddings = random(wordVocabularySize, embeddingSize).astype(dtype=floatX)
         defaultWeight = random(contextSize * embeddingSize, wordVocabularySize).astype(dtype=floatX)
@@ -39,15 +41,37 @@ class ProbabilisticLanguageModel():
         gradients = [T.grad(cost, wrt=p) for p in parameters]
         updates = [(p, p - learningRate * g) for p, g in zip(parameters, gradients)]
 
+        miniBatchIndex = T.lscalar('miniBatchIndex')
+        miniBatchSize = T.iscalar('miniBatchSize')
+
+        self.input = theano.shared(empty(1,1), borrow=True)
+        self.targetOutput = theano.shared(empty(1), borrow=True)
+
         self.trainModel = theano.function(
-            inputs=[contextIndices, targetProbability, learningRate],
+            inputs=[miniBatchIndex, miniBatchSize, learningRate],
             outputs=cost,
-            updates=updates
+            updates=updates,
+            givens={
+                contextIndices: self.input[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize],
+                targetProbability: self.targetOutput[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+            }
         )
 
 
-    def train(self, trainingInput, trainingTargetOutput, learningRate):
-        self.trainModel(trainingInput, trainingTargetOutput, learningRate)
+    def train(self, trainingInput, trainingTargetOutput, miniBatchSize, learningRate):
+        asarray = lambda x: numpy.asarray(x, dtype='int32')
+
+        trainingInput = asarray(trainingInput)
+        trainingTargetOutput = asarray(trainingTargetOutput)
+
+        self.input.set_value(trainingInput)
+        self.targetOutput.set_value(trainingTargetOutput)
+
+        trainInputSize = trainingInput.shape[0]
+        trainingBatchesCount = trainInputSize / miniBatchSize + int(trainInputSize % miniBatchSize > 0)
+
+        for trainingBatchIndex in xrange(0, trainingBatchesCount):
+            self.trainModel(trainingBatchIndex, miniBatchSize, learningRate)
 
 
     def getWordEmbeddings(self):
@@ -61,48 +85,34 @@ class ProbabilisticLanguageModel():
 def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatchSize, miniBatchSize, parametersPath, embeddingsPath, learningRate, epochs, metricsPath):
     superBatchesCount = contextProvider.contextsCount / superBatchSize + 1
 
-    startTime = time.time()
-    miniBatchesTotal = 0
+    for epoch in xrange(0, epochs):
 
-    for superBatchIndex in xrange(0, superBatchesCount):
-        contextSuperBatch = contextProvider[superBatchIndex * superBatchSize:(superBatchIndex + 1) * superBatchSize]
+        startTime = time.time()
+        for superBatchIndex in xrange(0, superBatchesCount):
+            contextSuperBatch = contextProvider[superBatchIndex * superBatchSize:(superBatchIndex + 1) * superBatchSize]
 
-        miniBatchStartTime = time.time()
-        miniBatchesCount = len(contextSuperBatch) / miniBatchSize + 1
-
-        for miniBatchIndex in xrange(0, miniBatchesCount):
-            contextMiniBatch = contextSuperBatch[miniBatchIndex * miniBatchSize:(miniBatchIndex + 1) * miniBatchSize]
-
-            if len(contextMiniBatch) == 0:
-                continue
-
-            fileIndices, wordIndices, targetWordIndices = contextMiniBatch[:,1], contextMiniBatch[:,1:-1], contextMiniBatch[:,-1]
-
-            miniBatchesTotal += 1
+            fileIndices, wordIndices, targetWordIndices = contextSuperBatch[:,1], contextSuperBatch[:,1:-1], contextSuperBatch[:,-1]
             previousTotal = 0
 
-            for epoch in xrange(0, epochs):
-                model.train(wordIndices, targetWordIndices, learningRate)
-                wordEmbeddigs = model.getWordEmbeddings()
+            model.train(wordIndices, targetWordIndices, miniBatchSize, learningRate)
 
-                rg, sim353, simLex999, syntRel, sat, total = metrics.validate(wordVocabulary, wordEmbeddigs)
+            wordEmbeddigs = model.getWordEmbeddings()
 
-                metrics.dump(superBatchIndex, miniBatchIndex, epoch, rg, sim353, simLex999, syntRel, sat, total, metricsPath)
+            rg, sim353, simLex999, syntRel, sat, total = metrics.validate(wordVocabulary, wordEmbeddigs)
+            metrics.dump(superBatchIndex, epoch, rg, sim353, simLex999, syntRel, sat, total, metricsPath)
 
-                if previousTotal < total:
-                    model.dump(parametersPath, embeddingsPath)
+            if previousTotal < total:
+                model.dump(parametersPath, embeddingsPath)
 
-                currentTime = time.time()
-                elapsed = currentTime - startTime
-                secondsPerSuperBatch = elapsed / (superBatchIndex + 1)
-                secondsPerMiniBatch = elapsed / miniBatchesTotal
+            currentTime = time.time()
+            elapsed = currentTime - startTime
+            secondsPerSuperBatch = elapsed / (superBatchIndex + 1)
 
-                log.progress('Training model: {0:.3f}%. Elapsed: {1}. ({2:.3f} sec/super batch). ({3:.3f} sec/mini batch).',
-                             miniBatchIndex + float(epoch)/epochs + superBatchesCount * superBatchIndex,
-                             superBatchesCount * miniBatchesCount,
-                             log.delta(elapsed),
-                             secondsPerSuperBatch,
-                             secondsPerMiniBatch)
+            log.progress('Training model: {0:.3f}%. Elapsed: {1}. ({2:.3f} sec/super batch).',
+                         superBatchIndex + 1,
+                         superBatchesCount,
+                         log.delta(elapsed),
+                         secondsPerSuperBatch)
 
     log.lineBreak()
 
