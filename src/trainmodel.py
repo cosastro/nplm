@@ -115,7 +115,11 @@ def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatc
             model.train(wordIndices, targetWordIndices, miniBatchSize, learningRate)
 
             metrics = validation.validate(wordVocabulary, model)
-            validation.dump(metricsPath, epoch, superBatchIndex, *metrics)
+            customMetrics = {
+                'simAB': similarity('A', 'B', wordVocabulary, model),
+                'simBC': similarity('B', 'C', wordVocabulary, model)
+            }
+            validation.dump(metricsPath, epoch, superBatchIndex, *metrics, **customMetrics)
 
             if previousTotal < sum(metrics):
                 model.dump(parametersPath, embeddingsPath)
@@ -127,8 +131,8 @@ def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatc
             log.progress('Training model: {0:.3f}%. Elapsed: {1}. Epoch: {2}. RG: {3}. Sim353: {4}. SimLex999: {5}. SyntRel: {6}. SAT: {7}. A/B: {8:.3f}. B/C: {9:.3f}',
                          epoch + 1, epochs, log.delta(elapsed), epoch,
                          rg, sim353, simLex999, syntRel, sat,
-                         similarity('A', 'B', wordVocabulary, model),
-                         similarity('B', 'C', wordVocabulary, model))
+                         customMetrics['simAB'],
+                         customMetrics['simBC'])
 
     log.lineBreak()
 

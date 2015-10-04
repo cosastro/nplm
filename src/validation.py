@@ -224,7 +224,7 @@ def validate(wordIndexMap, embeddings):
     return rg, sim353, sl999, syntRel, sat
 
 
-def dump(metricsPath, epoch, superBatchIndex, *metrics):
+def dump(metricsPath, epoch, superBatchIndex, *metrics, **customMetrics):
     rg, sim353, sl999, syntRel, sat = metrics
     metrics = [metric for metric in metrics if metric != metric]
 
@@ -232,7 +232,7 @@ def dump(metricsPath, epoch, superBatchIndex, *metrics):
     mean = numpy.mean(metrics)
     total = numpy.sum(metrics)
 
-    metrics = [{
+    metrics = {
         'epoch': epoch,
         'superBatchIndex': superBatchIndex,
         'rg': rg,
@@ -243,7 +243,12 @@ def dump(metricsPath, epoch, superBatchIndex, *metrics):
         'median': median,
         'mean': mean,
         'total': total
-    }]
+    }
+
+    for name, value in customMetrics.items():
+        metrics[name] = value
+
+    metrics = [metrics]
 
     if os.path.exists(metricsPath):
         with open(metricsPath, 'a') as metricsFile:
