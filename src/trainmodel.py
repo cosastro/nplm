@@ -126,10 +126,11 @@ def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatc
 
             currentTime = time.time()
             elapsed = currentTime - startTime
+            secondsPerEpoch = elapsed / (epoch + 1)
 
             rg, sim353, simLex999, syntRel, sat = metrics
-            log.progress('Training model: {0:.3f}%. Elapsed: {1}. Epoch: {2}. RG: {3}. Sim353: {4}. SimLex999: {5}. SyntRel: {6}. SAT: {7}. A/B: {8:.3f}. B/C: {9:.3f}',
-                         epoch + 1, epochs, log.delta(elapsed), epoch,
+            log.progress('Training model: {0:.3f}%. Elapsed: {1}. Epoch: {2}. ({3:.3f} sec/epoch), RG: {4}. Sim353: {5}. SimLex999: {6}. SyntRel: {7}. SAT: {8}. A/B: {9:.3f}. B/C: {10:.3f}',
+                         epoch + 1, epochs, log.delta(elapsed), epoch, secondsPerEpoch,
                          rg, sim353, simLex999, syntRel, sat,
                          customMetrics['simAB'],
                          customMetrics['simBC'])

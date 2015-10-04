@@ -10,31 +10,39 @@ import pandas
 import os
 
 
+rubensteinGoodenoughData = None
 def rubensteinGoodenough(wordIndexMap, embeddings):
-    rubensteinGoodenoughFilePath = 'res/RG/EN-RG-65.txt'
+    global rubensteinGoodenoughData
 
-    with open(rubensteinGoodenoughFilePath) as file:
-        lines = file.readlines()
+    if rubensteinGoodenoughData is None:
+        rubensteinGoodenoughData = []
 
-    wordPairs = []
-    targetScores = []
-    for line in lines:
-        word0, word1, score = tuple(line.strip().split('\t'))
-        if word0 in wordIndexMap and word1 in wordIndexMap:
-            score = float(score)
+        rubensteinGoodenoughFilePath = 'res/RG/EN-RG-65.txt'
 
-            wordPairs.append((word0, word1))
-            targetScores.append(score)
+        with open(rubensteinGoodenoughFilePath) as file:
+            lines = file.readlines()
+
+        wordPairs = []
+        targetScores = []
+        for line in lines:
+            word0, word1, targetScore = tuple(line.strip().split('\t'))
+            targetScore = float(targetScore)
+
+            rubensteinGoodenoughData.append((word0, word1, targetScore))
 
     scores = []
-    for word0, word1 in wordPairs:
-        word0Index = wordIndexMap[word0]
-        word1Index = wordIndexMap[word1]
-        word0Embedding = embeddings[word0Index]
-        word1Embedding = embeddings[word1Index]
+    targetScores = []
+    for word0, word1, targetScore in rubensteinGoodenoughData:
+        if word0 in wordIndexMap and word1 in wordIndexMap:
+            targetScores.append(targetScore)
 
-        score = vectors.cosineSimilarity(word0Embedding, word1Embedding)
-        scores.append(score)
+            word0Index = wordIndexMap[word0]
+            word1Index = wordIndexMap[word1]
+            word0Embedding = embeddings[word0Index]
+            word1Embedding = embeddings[word1Index]
+
+            score = vectors.cosineSimilarity(word0Embedding, word1Embedding)
+            scores.append(score)
 
     if len(scores) == 0:
         return numpy.nan
@@ -47,26 +55,32 @@ def rubensteinGoodenough(wordIndexMap, embeddings):
     return rubensteinGoodenoughMetric
 
 
+wordSimilarity353Data = None
 def wordSimilarity353(wordIndexMap, embeddings):
-    wordSimilarity353FilePath = 'res/WordSimilarity-353/combined.csv'
-    data = pandas.read_csv(wordSimilarity353FilePath)
+    global wordSimilarity353Data
 
-    wordPairs = []
-    targetScores = []
-    for word0, word1, score in zip(data['Word1'], data['Word2'], data['Score']):
-        if word0 in wordIndexMap and word1 in wordIndexMap:
-            wordPairs.append((word0, word1))
-            targetScores.append(score)
+    if wordSimilarity353Data is None:
+        wordSimilarity353Data = []
+
+        wordSimilarity353FilePath = 'res/WordSimilarity-353/combined.csv'
+        data = pandas.read_csv(wordSimilarity353FilePath)
+
+        for word0, word1, score in zip(data['Word1'], data['Word2'], data['Score']):
+            wordSimilarity353Data.append((word0, word1, score))
 
     scores = []
-    for word0, word1 in wordPairs:
-        word0Index = wordIndexMap[word0]
-        word1Index = wordIndexMap[word1]
-        word0Embedding = embeddings[word0Index]
-        word1Embedding = embeddings[word1Index]
+    targetScores = []
+    for word0, word1, targetScore in wordSimilarity353Data:
+        if word0 in wordIndexMap and word1 in wordIndexMap:
+            targetScores.append(targetScore)
 
-        score = vectors.cosineSimilarity(word0Embedding, word1Embedding)
-        scores.append(score)
+            word0Index = wordIndexMap[word0]
+            word1Index = wordIndexMap[word1]
+            word0Embedding = embeddings[word0Index]
+            word1Embedding = embeddings[word1Index]
+
+            score = vectors.cosineSimilarity(word0Embedding, word1Embedding)
+            scores.append(score)
 
     if len(scores) == 0:
         return numpy.nan
@@ -79,18 +93,22 @@ def wordSimilarity353(wordIndexMap, embeddings):
     return metric
 
 
+simLex999Data = None
 def simLex999(wordIndexMap, embeddings):
-    simLex999FilePath = 'res/SimLex-999/SimLex-999.txt'
-    data = pandas.read_csv(simLex999FilePath, sep='\t')
+    global simLex999Data
 
-    wordPairs = []
+    if simLex999Data is None:
+        simLex999Data = []
+        simLex999FilePath = 'res/SimLex-999/SimLex-999.txt'
+        data = pandas.read_csv(simLex999FilePath, sep='\t')
+
+        for word0, word1, targetScore in zip(data['word1'], data['word2'], data['SimLex999']):
+            simLex999Data.append((word0, word1, targetScore))
+
     targetScores = []
     scores = []
-
-    for word0, word1, targetScore in zip(data['word1'], data['word2'], data['SimLex999']):
+    for word0, word1, targetScore in simLex999Data:
         if word0 in wordIndexMap and word1 in wordIndexMap:
-            wordPairs.append((word0, word1))
-
             targetScores.append(targetScore)
 
             word0Index = wordIndexMap[word0]
@@ -112,16 +130,21 @@ def simLex999(wordIndexMap, embeddings):
     return simLex999Metric
 
 
+syntacticWordData = None
 def syntacticWordRelations(wordIndexMap, embeddings, maxWords=10):
-    syntWordRelFilePath = 'res/Syntactic-Word-Relations/questions-words.txt'
+    global syntacticWordData
 
-    with open(syntWordRelFilePath, 'r') as file:
-        lines = file.readlines()
-        words = [tuple(line.lower().split(' ')) for line in lines if not line.startswith(':')]
-        words = [(word0.strip(), word1.strip(), word2.strip(), word3.strip()) for word0, word1, word2, word3 in words]
+    if syntacticWordData is None:
+        syntacticWordData = []
+        syntWordRelFilePath = 'res/Syntactic-Word-Relations/questions-words.txt'
+
+        with open(syntWordRelFilePath, 'r') as file:
+            lines = file.readlines()
+            syntacticWordData = [tuple(line.lower().split(' ')) for line in lines if not line.startswith(':')]
+            syntacticWordData = [(word0.strip(), word1.strip(), word2.strip(), word3.strip()) for word0, word1, word2, word3 in syntacticWordData]
 
     scores = []
-    for word0, word1, word2, word3 in words:
+    for word0, word1, word2, word3 in syntacticWordData:
         if word0 not in wordIndexMap or word1 not in wordIndexMap or word2 not in wordIndexMap or word3 not in wordIndexMap:
             continue
 
@@ -158,53 +181,71 @@ def syntacticWordRelations(wordIndexMap, embeddings, maxWords=10):
     return syntacticWordRelationsMetric
 
 
+satQuestionsData = None
 def satQuestions(wordIndexMap, embeddings):
-    satQuestionsFilePath = 'res/SAT-Questions/SAT-package-V3.txt'
+    global satQuestionsData
 
-    maxLineLength = 50
-    aCode = ord('a')
+    if satQuestionsData is None:
+        satQuestionsData = []
+        satQuestionsFilePath = 'res/SAT-Questions/SAT-package-V3.txt'
 
-    scores = []
-    with open(satQuestionsFilePath) as file:
-        line = file.readline()
-        while line != '':
-            if len(line) < maxLineLength:
-                match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]:[nvar]', line)
-                if match:
-                    stemWord0, stemWord1 = match.group('word0'), match.group('word1')
-                    validSample = stemWord0 in wordIndexMap and stemWord1 in wordIndexMap
+        maxLineLength = 50
+        aCode = ord('a')
 
-                    if validSample:
-                        stemWord0Index = wordIndexMap[stemWord0]
-                        stemWord1Index = wordIndexMap[stemWord1]
-                        stemWord0Embedding, stemWord10Embedding = embeddings[stemWord0Index], embeddings[stemWord1Index]
-                        stemSimilarity = vectors.cosineSimilarity(stemWord0Embedding, stemWord10Embedding)
-
-                    choiceSimilarityDeltas = []
-                    line = file.readline()
+        with open(satQuestionsFilePath) as file:
+            line = file.readline()
+            while line != '':
+                if len(line) < maxLineLength:
                     match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]:[nvar]', line)
-                    while match:
-                        choiceWord0, choiceWord1 = match.group('word0'), match.group('word1')
-                        validSample = validSample and choiceWord0 in wordIndexMap and choiceWord1 in wordIndexMap
-
-                        if validSample:
-                            choiceWord0Index = wordIndexMap[choiceWord0]
-                            choiceWord1Index = wordIndexMap[choiceWord1]
-                            choiceWord0Embedding, choiceWord1Embedding = embeddings[choiceWord0Index], embeddings[choiceWord1Index]
-                            choiceSimilarity = vectors.cosineSimilarity(choiceWord0Embedding, choiceWord1Embedding)
-
-                            choiceSimilarityDelta = abs(stemSimilarity - choiceSimilarity)
-                            choiceSimilarityDeltas.append(choiceSimilarityDelta)
+                    if match:
+                        stemWord0, stemWord1 = match.group('word0'), match.group('word1')
+                        satQuestion = [stemWord0, stemWord1]
 
                         line = file.readline()
                         match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]:[nvar]', line)
+                        while match:
+                            choiceWord0, choiceWord1 = match.group('word0'), match.group('word1')
+                            satQuestion.append(choiceWord0)
+                            satQuestion.append(choiceWord1)
 
-                    if validSample:
-                        choice = numpy.argmin(choiceSimilarityDeltas)
+                            line = file.readline()
+                            match = re.match('(?P<word0>[\w-]+)\s(?P<word1>[\w-]+)\s[nvar]:[nvar]', line)
+
                         correctChoiceIndex = ord(line.strip()) - aCode
-                        scores.append(int(choice == correctChoiceIndex))
+                        satQuestion.append(correctChoiceIndex)
 
-            line = file.readline()
+                        satQuestionsData.append(satQuestion)
+
+                line = file.readline()
+
+    scores = []
+    for satQuestion in satQuestionsData:
+        if any([word not in wordIndexMap for word in satQuestion[:-1]]):
+            continue
+
+        stemWord0, stemWord1 = satQuestion[:2]
+
+        stemWord0Index = wordIndexMap[stemWord0]
+        stemWord1Index = wordIndexMap[stemWord1]
+        stemWord0Embedding, stemWord1Embedding = embeddings[stemWord0Index], embeddings[stemWord1Index]
+        stemSimilarity = vectors.cosineSimilarity(stemWord0Embedding, stemWord1Embedding)
+
+        correctChoiceIndex = satQuestion[-1]
+        choiceSimilarityDeltas = []
+
+        choices = satQuestion[2:-1]
+        for i in xrange(0, len(choices), 2):
+            choiceWord0, choiceWord1 = choices[i], choices[i+1]
+            choiceWord0Index, choiceWord1Index = wordIndexMap[choiceWord0], wordIndexMap[choiceWord1]
+            choiceWord0Embedding, choiceWord1Embedding = embeddings[choiceWord0Index], embeddings[choiceWord1Index]
+
+            choiceSimilarity = vectors.cosineSimilarity(choiceWord0Embedding, choiceWord1Embedding)
+
+            choiceSimilarityDelta = abs(stemSimilarity - choiceSimilarity)
+            choiceSimilarityDeltas.append(choiceSimilarityDelta)
+
+            choiceIndex = numpy.argmin(choiceSimilarityDeltas)
+            scores.append(int(choiceIndex == correctChoiceIndex))
 
     if len(scores) == 0:
         return numpy.nan
@@ -260,7 +301,7 @@ def dump(metricsPath, epoch, superBatchIndex, *metrics, **customMetrics):
 
 
 def main():
-    embeddingsFilePath = '../data/Text8/Processed/vectors.bin'
+    embeddingsFilePath = '../data/Text8-vectors/vectors.bin'
     wordIndexMap, embeddings = kit.loadWord2VecEmbeddings(embeddingsFilePath)
 
     rgMetric = rubensteinGoodenough(wordIndexMap, embeddings)
