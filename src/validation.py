@@ -20,10 +20,11 @@ def rubensteinGoodenough(wordIndexMap, embeddings):
     targetScores = []
     for line in lines:
         word0, word1, score = tuple(line.strip().split('\t'))
-        score = float(score)
+        if word0 in wordIndexMap and word1 in wordIndexMap:
+            score = float(score)
 
-        wordPairs.append((word0, word1))
-        targetScores.append(score)
+            wordPairs.append((word0, word1))
+            targetScores.append(score)
 
     scores = []
     for word0, word1 in wordPairs:
@@ -34,6 +35,9 @@ def rubensteinGoodenough(wordIndexMap, embeddings):
 
         score = vectors.cosineSimilarity(word0Embedding, word1Embedding)
         scores.append(score)
+
+    if len(scores) == 0:
+        return numpy.nan
 
     pearson, pearsonDeviation = scipy.stats.pearsonr(scores, targetScores)
     spearman, spearmanDeviation = scipy.stats.spearmanr(scores, targetScores)
@@ -64,6 +68,9 @@ def wordSimilarity353(wordIndexMap, embeddings):
         score = vectors.cosineSimilarity(word0Embedding, word1Embedding)
         scores.append(score)
 
+    if len(scores) == 0:
+        return numpy.nan
+
     pearson, pearsonDeviation = scipy.stats.pearsonr(scores, targetScores)
     spearman, spearmanDeviation = scipy.stats.spearmanr(scores, targetScores)
 
@@ -93,6 +100,9 @@ def simLex999(wordIndexMap, embeddings):
 
             score = vectors.cosineSimilarity(word0Embedding, word1Embedding)
             scores.append(score)
+
+    if len(scores) == 0:
+        return numpy.nan
 
     pearson, pearsonDeviation = scipy.stats.pearsonr(scores, targetScores)
     spearman, spearmanDeviation = scipy.stats.spearmanr(scores, targetScores)
@@ -139,6 +149,9 @@ def syntacticWordRelations(wordIndexMap, embeddings, maxWords=10):
                 break
 
         scores.append(score)
+
+    if len(scores) == 0:
+        return numpy.nan
 
     syntacticWordRelationsMetric = float(sum(scores)) / len(scores)
 
@@ -193,31 +206,42 @@ def satQuestions(wordIndexMap, embeddings):
 
             line = file.readline()
 
+    if len(scores) == 0:
+        return numpy.nan
+
     metric = float(sum(scores)) / len(scores)
 
     return metric
 
 
-def validate(wordVocabulary, wordEmbeddigs):
-    rg = 0
-    sim353 = 0
-    simLex999 = 0
-    syntRel = 0
-    sat = 0
-    total = 0
+def validate(wordIndexMap, embeddings):
+    rg = rubensteinGoodenough(wordIndexMap, embeddings)
+    sim353 = wordSimilarity353(wordIndexMap, embeddings)
+    sl999 = simLex999(wordIndexMap, embeddings)
+    syntRel = syntacticWordRelations(wordIndexMap, embeddings)
+    sat = satQuestions(wordIndexMap, embeddings)
 
-    return rg, sim353, simLex999, syntRel, sat, total
+    return rg, sim353, sl999, syntRel, sat
 
 
-def dump(epoch, superBatchIndex, rg, sim353, simLex999, syntRel, sat, total, metricsPath):
+def dump(metricsPath, epoch, superBatchIndex, *metrics):
+    rg, sim353, sl999, syntRel, sat = metrics
+    metrics = [metric for metric in metrics if metric != metric]
+
+    median = numpy.median(metrics)
+    mean = numpy.mean(metrics)
+    total = numpy.sum(metrics)
+
     metrics = [{
         'epoch': epoch,
         'superBatchIndex': superBatchIndex,
         'rg': rg,
         'sim353': sim353,
-        'simLex999': simLex999,
+        'sl999': sl999,
         'syntRel': syntRel,
         'sat': sat,
+        'median': median,
+        'mean': mean,
         'total': total
     }]
 

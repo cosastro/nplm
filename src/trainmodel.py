@@ -10,7 +10,7 @@ import theano.tensor as T
 import parameters
 import vectors
 import log
-import metrics
+import validation
 
 
 class ProbabilisticLanguageModel():
@@ -114,15 +114,16 @@ def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatc
 
             model.train(wordIndices, targetWordIndices, miniBatchSize, learningRate)
 
-            rg, sim353, simLex999, syntRel, sat, total = metrics.validate(wordVocabulary, model)
-            metrics.dump(epoch, superBatchIndex, rg, sim353, simLex999, syntRel, sat, total, metricsPath)
+            metrics = validation.validate(wordVocabulary, model)
+            validation.dump(metricsPath, epoch, superBatchIndex, *metrics)
 
-            if previousTotal < total:
+            if previousTotal < sum(metrics):
                 model.dump(parametersPath, embeddingsPath)
 
             currentTime = time.time()
             elapsed = currentTime - startTime
 
+            rg, sim353, simLex999, syntRel, sat = metrics
             log.progress('Training model: {0:.3f}%. Elapsed: {1}. Epoch: {2}. RG: {3}. Sim353: {4}. SimLex999: {5}. SyntRel: {6}. SAT: {7}. A/B: {8:.3f}. B/C: {9:.3f}',
                          epoch + 1, epochs, log.delta(elapsed), epoch,
                          rg, sim353, simLex999, syntRel, sat,
