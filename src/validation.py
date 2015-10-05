@@ -8,6 +8,8 @@ import re
 import vectors
 import pandas
 import os
+import pylab
+from matplotlib import colors
 
 
 rubensteinGoodenoughData = None
@@ -298,6 +300,51 @@ def dump(metricsPath, epoch, superBatchIndex, *metrics, **customMetrics):
     else:
         metricsHistory = pandas.DataFrame.from_dict(metrics)
         metricsHistory.to_csv(metricsPath, header=True)
+
+
+def compareMetrics(metricsHistoryPath, *metricNames):
+    metrics = pandas.DataFrame.from_csv(metricsHistoryPath)
+    epochs = metrics['epoch']
+
+    pylab.grid()
+
+    metricScatters = []
+    colorNames = colors.cnames.keys()
+    for metricIndex, metricName in enumerate(metricNames):
+        metric = metrics[metricName]
+        metricScatter = pylab.scatter(epochs, metric, c=colorNames[metricIndex % len(colorNames)])
+        metricScatters.append(metricScatter)
+
+    metricsFileName = os.path.basename(metricsHistoryPath)
+    pylab.title(metricsFileName)
+
+    pylab.legend(metricScatters, metricNames, scatterpoints=1, loc='lower right', ncol=3, fontsize=8)
+
+    pylab.show()
+
+
+def compareHistories(metricName, *metricsHistoryPaths):
+    pylab.grid()
+
+    metricScatters = []
+    metricsHistoryNames = []
+    colorNames = colors.cnames.keys()
+
+    for metricsHistoryIndex, metricsHistoryPath in enumerate(metricsHistoryPaths):
+        metrics = pandas.DataFrame.from_csv(metricsHistoryPath)
+        epochs = metrics['epoch']
+        metric = metrics[metricName]
+
+        metricScatter = pylab.scatter(epochs, metric, c=colorNames[metricsHistoryIndex % len(colorNames)])
+        metricScatters.append(metricScatter)
+
+        metricsHistoryName = os.path.basename(metricsHistoryPath)
+        metricsHistoryNames.append(metricsHistoryName)
+
+    pylab.title(metricName)
+    pylab.legend(metricScatters, metricsHistoryNames, scatterpoints=1, loc='lower right', ncol=3, fontsize=8)
+
+    pylab.show()
 
 
 def main():

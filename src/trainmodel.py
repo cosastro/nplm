@@ -174,5 +174,5 @@ if __name__ == '__main__':
         parametersPath = '../data/Fake/Processed/parameters.bin',
         embeddingsPath = '../data/Fake/Processed/embeddings.bin',
         learningRate = 0.13,
-        epochs = 1000,
+        epochs = 100,
         metricsPath = '../data/Fake/Processed/metrics.csv')
