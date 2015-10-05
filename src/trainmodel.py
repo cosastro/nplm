@@ -79,7 +79,11 @@ class ProbabilisticLanguageModel():
 
     def __getitem__(self, item):
         if isinstance(item, slice):
-            embeddingIndices = [i for i in xrange(item.start, item.stop, item.step)]
+            start = item.start if item.start is not None else 0
+            stop = item.stop if item.stop is not None else self.wordEmbeddings.shape().get_value()[0]
+            step = item.step if item.step is not None else 1
+
+            embeddingIndices = [i for i in xrange(start, stop, step)]
 
             return self.getWordEmbeddings(embeddingIndices)
 
@@ -124,11 +128,12 @@ def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatc
             model.train(wordIndices, targetWordIndices, miniBatchSize, learningRate, l1Coefficient, l2Coefficient)
 
             metrics = validation.validate(wordVocabulary, model)
-            customMetrics = {
-                'simAB': similarity('A', 'B', wordVocabulary, model),
-                'simBC': similarity('B', 'C', wordVocabulary, model)
-            }
-            validation.dump(metricsPath, epoch, superBatchIndex, *metrics, **customMetrics)
+            # customMetrics = {
+            #     'simAB': similarity('A', 'B', wordVocabulary, model),
+            #     'simBC': similarity('B', 'C', wordVocabulary, model)
+            # }
+            #validation.dump(metricsPath, epoch, superBatchIndex, *metrics, **customMetrics)
+            validation.dump(metricsPath, epoch, superBatchIndex, *metrics)
 
             if previousTotal < sum(metrics):
                 model.dump(parametersPath, embeddingsPath)
@@ -138,11 +143,14 @@ def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatc
             secondsPerEpoch = elapsed / (epoch + 1)
 
             rg, sim353, simLex999, syntRel, sat = metrics
-            log.progress('Training model: {0:.3f}%. Elapsed: {1}. Epoch: {2}. ({3:.3f} sec/epoch), RG: {4}. Sim353: {5}. SimLex999: {6}. SyntRel: {7}. SAT: {8}. A/B: {9:.3f}. B/C: {10:.3f}',
+            # log.progress('Training model: {0:.3f}%. Elapsed: {1}. Epoch: {2}. ({3:.3f} sec/epoch), RG: {4}. Sim353: {5}. SimLex999: {6}. SyntRel: {7}. SAT: {8}. A/B: {9:.3f}. B/C: {10:.3f}',
+            #              epoch + 1, epochs, log.delta(elapsed), epoch, secondsPerEpoch,
+            #              rg, sim353, simLex999, syntRel, sat,
+            #              customMetrics['simAB'],
+            #              customMetrics['simBC'])
+            log.progress('Training model: {0:.3f}%. Elapsed: {1}. Epoch: {2}. ({3:.3f} sec/epoch), RG: {4:.3f}. Sim353: {5:.3f}. SimLex999: {6:.3f}.',
                          epoch + 1, epochs, log.delta(elapsed), epoch, secondsPerEpoch,
-                         rg, sim353, simLex999, syntRel, sat,
-                         customMetrics['simAB'],
-                         customMetrics['simBC'])
+                         rg, sim353, simLex999)
 
     log.lineBreak()
 
@@ -160,12 +168,12 @@ def similarity(left, right, wordVocabulary, embeddings):
 
 
 if __name__ == '__main__':
-    fileVocabularyPath = '../data/Fake/Processed/file_vocabulary.bin.gz'
-    wordVocabularyPath = '../data/Fake/Processed/word_vocabulary.bin.gz'
-    contextsPath = '../data/Fake/Processed/contexts.bin.gz'
+    fileVocabularyPath = '../data/Wikipedia/Processed/file_vocabulary.bin.gz'
+    wordVocabularyPath = '../data/Wikipedia/Processed/word_vocabulary.bin.gz'
+    contextsPath = '../data/Wikipedia/Processed/contexts.bin.gz'
 
     fileVocabulary = parameters.loadFileVocabulary(fileVocabularyPath)
-    wordVocabulary = parameters.loadWordVocabulary(wordVocabularyPath)
+    wordVocabulary = parameters.loadWordVocabulary(wordVocabularyPath, False)
     fileVocabularySize = parameters.getFileVocabularySize(fileVocabularyPath)
     wordVocabularySize = parameters.getWordVocabularySize(wordVocabularyPath)
     contextProvider = parameters.IndexContextProvider(contextsPath)
@@ -178,12 +186,12 @@ if __name__ == '__main__':
         wordVocabulary,
         contextProvider,
         model,
-        superBatchSize = 30,
-        miniBatchSize = 10,
-        parametersPath = '../data/Fake/Processed/parameters.bin',
-        embeddingsPath = '../data/Fake/Processed/embeddings.bin',
+        superBatchSize = 1000000,
+        miniBatchSize = 1000,
+        parametersPath = '../data/Wikipedia/Processed/parameters.bin',
+        embeddingsPath = '../data/Wikipedia/Processed/embeddings.bin',
         learningRate = 0.13,
         l1Coefficient = 0.006,
         l2Coefficient = 0.001,
         epochs = 100,
-        metricsPath = '../data/Fake/Processed/metrics_l1_l2.csv')
+        metricsPath = '../data/Wikipedia/Processed/metrics_l1_l2.csv')

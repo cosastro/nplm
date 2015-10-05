@@ -8,9 +8,9 @@ import re
 import vectors
 import pandas
 import os
-import pylab
+#import pylab
 import random
-from matplotlib import colors
+#from matplotlib import colors
 
 
 rubensteinGoodenoughData = None

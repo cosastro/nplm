@@ -161,7 +161,7 @@ def dumpWordVocabulary(vocabulary, vocabularyFilePath):
         log.lineBreak()
 
 
-def loadWordVocabulary(vocabularyFilePath):
+def loadWordVocabulary(vocabularyFilePath, loadFrequencies=True):
     vocabulary = collections.OrderedDict()
 
     with gzip.open(vocabularyFilePath, 'rb') as file:
@@ -180,7 +180,7 @@ def loadWordVocabulary(vocabularyFilePath):
             frequency = file.read(4)
             frequency = struct.unpack('i', frequency)[0]
 
-            vocabulary[word] = (index, frequency)
+            vocabulary[word] = (index, frequency) if loadFrequencies else index
 
             log.progress('Loading word vocabulary: {0:.3f}%.', itemIndex + 1, itemsCount)
 

@@ -167,7 +167,7 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
         tempContextsFile.write(struct.pack('i', contextSize))
 
         pathName = inputDirectoryPath + '/*/*.txt.gz'
-        textFilePaths = glob.glob(pathName)[:100]
+        textFilePaths = glob.glob(pathName)[:10000]
         textFilePaths = sorted(textFilePaths)
         textFileCount = len(textFilePaths)
         startTime = time.time()
@@ -249,10 +249,12 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
                     uncompressedPrunedContexts.write(buffer)
 
                 contextIndex += 1
-                log.progress('Pruning contexts: {0:.3f}%. {1} contexts pruned out of {2}.',
+                contextsPruned = contextIndex - prunedContextsCount + 1
+                log.progress('Pruning contexts: {0:.3f}%. {1} contexts (2:.3f%) pruned out of {3}.',
                              contextIndex,
                              contextsCount,
-                             contextsCount - prunedContextsCount,
+                             contextsPruned,
+                             float(contextsPruned) / contextsCount,
                              contextsCount)
 
             log.lineBreak()
@@ -294,12 +296,12 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
 
 if __name__ == '__main__':
-    inputDirectoryPath = '../data/Fake/Prepared'
-    fileVocabularyPath = '../data/Fake/Processed/file_vocabulary.bin.gz'
-    wordVocabularyPath = '../data/Fake/Processed/word_vocabulary.bin.gz'
-    contextsPath = '../data/Fake/Processed/contexts.bin.gz'
+    inputDirectoryPath = '../data/Wikipedia/Prepared'
+    fileVocabularyPath = '../data/Wikipedia/Processed/file_vocabulary.bin.gz'
+    wordVocabularyPath = '../data/Wikipedia/Processed/word_vocabulary.bin.gz'
+    contextsPath = '../data/Wikipedia/Processed/contexts.bin.gz'
     contextSize = 7
-    maxVocabularySize = 162
-    whiteListPath = '../data/Fake/white_list.txt'
+    maxVocabularySize = 15000
+    whiteListPath = 'res/Tools/white_list.txt'
 
     processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize, maxVocabularySize)
