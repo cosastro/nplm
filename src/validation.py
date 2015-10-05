@@ -9,6 +9,7 @@ import vectors
 import pandas
 import os
 import pylab
+import random
 from matplotlib import colors
 
 
@@ -304,7 +305,7 @@ def dump(metricsPath, epoch, superBatchIndex, *metrics, **customMetrics):
 
 def compareMetrics(metricsHistoryPath, *metricNames):
     metrics = pandas.DataFrame.from_csv(metricsHistoryPath)
-    epochs = metrics['epoch']
+    iterations = range(0, len(metrics))
 
     pylab.grid()
 
@@ -312,7 +313,9 @@ def compareMetrics(metricsHistoryPath, *metricNames):
     colorNames = colors.cnames.keys()
     for metricIndex, metricName in enumerate(metricNames):
         metric = metrics[metricName]
-        metricScatter = pylab.scatter(epochs, metric, c=colorNames[metricIndex % len(colorNames)])
+
+        random.shuffle(colorNames)
+        metricScatter = pylab.scatter(iterations, metric, c=colorNames[metricIndex % len(colorNames)])
         metricScatters.append(metricScatter)
 
     metricsFileName = os.path.basename(metricsHistoryPath)
@@ -332,10 +335,11 @@ def compareHistories(metricName, *metricsHistoryPaths):
 
     for metricsHistoryIndex, metricsHistoryPath in enumerate(metricsHistoryPaths):
         metrics = pandas.DataFrame.from_csv(metricsHistoryPath)
-        epochs = metrics['epoch']
+        iterations = range(0, len(metrics))
         metric = metrics[metricName]
 
-        metricScatter = pylab.scatter(epochs, metric, c=colorNames[metricsHistoryIndex % len(colorNames)])
+        random.shuffle(colorNames)
+        metricScatter = pylab.scatter(iterations, metric, c=colorNames[metricsHistoryIndex % len(colorNames)])
         metricScatters.append(metricScatter)
 
         metricsHistoryName = os.path.basename(metricsHistoryPath)

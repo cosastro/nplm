@@ -36,7 +36,16 @@ class ProbabilisticLanguageModel():
         probabilities = T.nnet.softmax(T.dot(context, self.weight) + self.bias)
         targetProbability = T.ivector('targetProbability')
 
-        cost = -T.mean(T.log(probabilities)[T.arange(targetProbability.shape[0]), targetProbability])
+        l1Coefficient = T.scalar('l1Coefficient', dtype=floatX)
+        l2Coefficient = T.scalar('l2Coefficient', dtype=floatX)
+
+        l1Regularization = l1Coefficient * sum([abs(p).sum() for p in parameters])
+        l2Regularization = l2Coefficient * sum([(p ** 2).sum() for p in parameters])
+
+        cost = -T.mean(T.log(probabilities)[T.arange(targetProbability.shape[0]), targetProbability]) \
+               + l1Regularization \
+               + l2Regularization
+
 
         learningRate = T.scalar('learningRate', dtype=floatX)
 
@@ -50,7 +59,7 @@ class ProbabilisticLanguageModel():
         self.targetOutput = theano.shared(empty(1), borrow=True)
 
         self.trainModel = theano.function(
-            inputs=[miniBatchIndex, miniBatchSize, learningRate],
+            inputs=[miniBatchIndex, miniBatchSize, learningRate, l1Coefficient, l2Coefficient],
             outputs=cost,
             updates=updates,
             givens={
@@ -77,7 +86,7 @@ class ProbabilisticLanguageModel():
         return self.getWordEmbeddings([item])[0]
 
 
-    def train(self, trainingInput, trainingTargetOutput, miniBatchSize, learningRate):
+    def train(self, trainingInput, trainingTargetOutput, miniBatchSize, learningRate, l1Coefficient, l2Coefficient):
         asarray = lambda x: numpy.asarray(x, dtype='int32')
 
         trainingInput = asarray(trainingInput)
@@ -90,7 +99,7 @@ class ProbabilisticLanguageModel():
         trainingBatchesCount = trainInputSize / miniBatchSize + int(trainInputSize % miniBatchSize > 0)
 
         for trainingBatchIndex in xrange(0, trainingBatchesCount):
-            self.trainModel(trainingBatchIndex, miniBatchSize, learningRate)
+            self.trainModel(trainingBatchIndex, miniBatchSize, learningRate, l1Coefficient, l2Coefficient)
 
 
     def dump(self, parametersPath, embeddingsPath):
@@ -98,7 +107,7 @@ class ProbabilisticLanguageModel():
         parameters.dumpEmbeddings(embeddings, embeddingsPath)
 
 
-def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatchSize, miniBatchSize, parametersPath, embeddingsPath, learningRate, epochs, metricsPath):
+def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatchSize, miniBatchSize, parametersPath, embeddingsPath, learningRate, l1Coefficient, l2Coefficient, epochs, metricsPath):
     if os.path.exists(metricsPath):
         os.remove(metricsPath)
 
@@ -112,7 +121,7 @@ def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatc
 
             fileIndices, wordIndices, targetWordIndices = contextSuperBatch[:,1], contextSuperBatch[:,1:-1], contextSuperBatch[:,-1]
 
-            model.train(wordIndices, targetWordIndices, miniBatchSize, learningRate)
+            model.train(wordIndices, targetWordIndices, miniBatchSize, learningRate, l1Coefficient, l2Coefficient)
 
             metrics = validation.validate(wordVocabulary, model)
             customMetrics = {
@@ -174,5 +183,7 @@ if __name__ == '__main__':
         parametersPath = '../data/Fake/Processed/parameters.bin',
         embeddingsPath = '../data/Fake/Processed/embeddings.bin',
         learningRate = 0.13,
+        l1Coefficient = 0.006,
+        l2Coefficient = 0.001,
         epochs = 100,
-        metricsPath = '../data/Fake/Processed/metrics.csv')
+        metricsPath = '../data/Fake/Processed/metrics_l1_l2.csv')
