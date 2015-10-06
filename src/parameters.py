@@ -1,5 +1,4 @@
 import os
-import gzip
 import io
 import log
 import struct
@@ -25,7 +24,7 @@ class IndexContextProvider():
 
 
     def getContextsShape(self):
-        with gzip.open(self.contextsFilePath) as contextsFile:
+        with open(self.contextsFilePath) as contextsFile:
             contextsCount = contextsFile.read(4)
             contextSize = contextsFile.read(4)
 
@@ -37,7 +36,7 @@ class IndexContextProvider():
 
     def getContexts(self, start, stop, step):
         if step == 1:
-            with gzip.open(self.contextsFilePath) as contextsFile:
+            with open(self.contextsFilePath) as contextsFile:
                 count = stop - start
                 contextBufferSize = self.contextSize * 4
                 contextsBufferSize = count * contextBufferSize
@@ -78,7 +77,7 @@ def dumpFileVocabulary(vocabulary, vocabularyFilePath):
     itemsCount = len(vocabulary)
     itemIndex = 0
 
-    with gzip.open(vocabularyFilePath, 'w') as file:
+    with open(vocabularyFilePath, 'w') as file:
         file.write(struct.pack('i', itemsCount))
 
         for key, index in vocabulary.items():
@@ -101,7 +100,7 @@ def dumpFileVocabulary(vocabulary, vocabularyFilePath):
 def loadFileVocabulary(vocabularyFilePath):
     vocabulary = collections.OrderedDict()
 
-    with gzip.open(vocabularyFilePath, 'rb') as file:
+    with open(vocabularyFilePath, 'rb') as file:
         itemsCount = file.read(4)
         itemsCount = struct.unpack('i', itemsCount)[0]
 
@@ -118,13 +117,13 @@ def loadFileVocabulary(vocabularyFilePath):
 
             log.progress('Loading file vocabulary: {0:.3f}%.', itemIndex + 1, itemsCount)
 
-        log.info('')
+        log.lineBreak()
 
     return vocabulary
 
 
 def getFileVocabularySize(fileVocabularyPath):
-    with gzip.open(fileVocabularyPath, 'rb') as file:
+    with open(fileVocabularyPath, 'rb') as file:
         itemsCount = file.read(4)
         itemsCount = struct.unpack('i', itemsCount)[0]
 
@@ -138,7 +137,7 @@ def dumpWordVocabulary(vocabulary, vocabularyFilePath):
     itemsCount = len(vocabulary)
     itemIndex = 0
 
-    with gzip.open(vocabularyFilePath, 'w') as file:
+    with open(vocabularyFilePath, 'w') as file:
         file.write(struct.pack('i', itemsCount))
 
         for key, value in vocabulary.items():
@@ -164,7 +163,7 @@ def dumpWordVocabulary(vocabulary, vocabularyFilePath):
 def loadWordVocabulary(vocabularyFilePath, loadFrequencies=True):
     vocabulary = collections.OrderedDict()
 
-    with gzip.open(vocabularyFilePath, 'rb') as file:
+    with open(vocabularyFilePath, 'rb') as file:
         itemsCount = file.read(4)
         itemsCount = struct.unpack('i', itemsCount)[0]
 
@@ -184,13 +183,13 @@ def loadWordVocabulary(vocabularyFilePath, loadFrequencies=True):
 
             log.progress('Loading word vocabulary: {0:.3f}%.', itemIndex + 1, itemsCount)
 
-        log.info('')
+        log.lineBreak()
 
     return vocabulary
 
 
 def getWordVocabularySize(wordVocabularyPath):
-    with gzip.open(wordVocabularyPath, 'rb') as file:
+    with open(wordVocabularyPath, 'rb') as file:
         itemsCount = file.read(4)
         itemsCount = struct.unpack('i', itemsCount)[0]
 
@@ -203,7 +202,7 @@ def dumpEmbeddings(embeddings, embeddingsFilePath):
 
     wordsCount, embeddingSize = embeddings.shape
 
-    with gzip.open(embeddingsFilePath, 'w') as file:
+    with open(embeddingsFilePath, 'w') as file:
         file.write(struct.pack('<i', wordsCount))
         file.write(struct.pack('<i', embeddingSize))
 
@@ -216,7 +215,7 @@ def dumpEmbeddings(embeddings, embeddingsFilePath):
 
 
 def loadEmbeddigns(embeddingsFilePath):
-    with gzip.open(embeddingsFilePath, 'rb') as file:
+    with open(embeddingsFilePath, 'rb') as file:
         wordsCount = file.read(4)
         wordsCount = struct.unpack('<i', wordsCount)[0]
 

@@ -3,8 +3,8 @@ import shutil
 import log
 import glob
 import time
-import gzip
 import re
+import gzip
 from datetime import timedelta
 
 
@@ -67,16 +67,11 @@ def cleanPage(page):
     return pageName, pageText
 
 
-def savePage(dumpDirectoryPath, pageName, pageText, compress):
+def savePage(dumpDirectoryPath, pageName, pageText):
     filePath = os.path.join(dumpDirectoryPath, pageName + '.txt')
 
-    if compress:
-        filePath = filePath + '.gz'
-        with gzip.open(filePath, 'wb+') as file:
-            file.write(pageText)
-    else:
-        with open(filePath, 'wb+') as file:
-            file.write(pageText)
+    with open(filePath, 'wb+') as file:
+        file.write(pageText)
 
 
 def unpackDump(dumpPath, cleanText):
@@ -102,7 +97,7 @@ def unpackDump(dumpPath, cleanText):
     return dumpName, pages
 
 
-def prepareWikipediaDumps(inputDirectoryPath, outputDirectoryPath, cleanText=True, compress=True):
+def prepareWikipediaDumps(inputDirectoryPath, outputDirectoryPath, cleanText=True):
     if os.path.exists(outputDirectoryPath):
         shutil.rmtree(outputDirectoryPath, ignore_errors=True)
         log.info('Output directory {0} has been removed.', outputDirectoryPath)
@@ -112,7 +107,7 @@ def prepareWikipediaDumps(inputDirectoryPath, outputDirectoryPath, cleanText=Tru
     log.info('Output directory {0} has been created.', outputDirectoryPath)
 
     pathName = inputDirectoryPath + '/*wiki*.txt.gz'
-    dumpPaths = glob.glob(pathName)[:100]
+    dumpPaths = glob.glob(pathName)[:10]
     dumpsCount = len(dumpPaths)
     log.info('Found {0} Wikipedia dumps.', dumpsCount)
 
@@ -127,7 +122,7 @@ def prepareWikipediaDumps(inputDirectoryPath, outputDirectoryPath, cleanText=Tru
             os.chown(dumpDirectoryPath, 1000, 1000)
 
             for pageName, pageText in pages:
-                savePage(dumpDirectoryPath, pageName, pageText, compress)
+                savePage(dumpDirectoryPath, pageName, pageText)
 
         currentTime = time.time()
         elapsed = currentTime - startTime

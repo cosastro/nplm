@@ -15,10 +15,7 @@ from datetime import timedelta
 
 class WordContextProvider:
     def __init__(self, textFilePath):
-        if textFilePath.endswith('gz'):
-            self.textFile = gzip.open(textFilePath)
-        else:
-            self.textFile = open(textFilePath, 'rb')
+        self.textFile = open(textFilePath)
 
 
     def __del__(self):
@@ -157,17 +154,17 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
     fileVocabulary = collections.OrderedDict()
     wordVocabulary = collections.OrderedDict()
 
-    uncompressedContextsPath = contextsPath + '.uncompressed'
+    unprunedContextsPath = contextsPath + '.unpruned'
 
-    if os.path.exists(uncompressedContextsPath):
-        os.remove(uncompressedContextsPath)
+    if os.path.exists(unprunedContextsPath):
+        os.remove(unprunedContextsPath)
 
-    with open(uncompressedContextsPath, 'wb+') as tempContextsFile:
-        tempContextsFile.write(struct.pack('i', 0)) # this is a placeholder for contexts count
-        tempContextsFile.write(struct.pack('i', contextSize))
+    with open(unprunedContextsPath, 'wb+') as unprunedContextsFile:
+        unprunedContextsFile.write(struct.pack('i', 0)) # this is a placeholder for contexts count
+        unprunedContextsFile.write(struct.pack('i', contextSize))
 
-        pathName = inputDirectoryPath + '/*/*.txt.gz'
-        textFilePaths = glob.glob(pathName)[:10000]
+        pathName = inputDirectoryPath + '/*/*.txt'
+        textFilePaths = glob.glob(pathName)[:200]
         textFilePaths = sorted(textFilePaths)
         textFileCount = len(textFilePaths)
         startTime = time.time()
@@ -190,7 +187,7 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
                 indexContext = map(lambda w: wordVocabulary[w][0], wordContext)
                 indexContext = [textFileIndex] + indexContext
 
-                tempContextsFile.write(struct.pack(contextFormat, *indexContext))
+                unprunedContextsFile.write(struct.pack(contextFormat, *indexContext))
                 contextsCount += 1
 
             textFileName = os.path.basename(textFilePath)
@@ -207,9 +204,9 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
         log.lineBreak()
 
-        tempContextsFile.seek(0, io.SEEK_SET)
-        tempContextsFile.write(struct.pack('i', contextsCount))
-        tempContextsFile.flush()
+        unprunedContextsFile.seek(0, io.SEEK_SET)
+        unprunedContextsFile.write(struct.pack('i', contextsCount))
+        unprunedContextsFile.flush()
 
     whiteList = whitelist.load()
     originalVocabularyLength = len(wordVocabulary)
@@ -217,11 +214,9 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
     log.info('Vocabulary has been pruned. {0} items left out of {1}.', len(prunedWordVocabulary), originalVocabularyLength)
 
-    uncompressedPrunedContextsPath = contextsPath + '.uncompressed-pruned'
-
-    with open(uncompressedContextsPath, 'rb') as tempContextsFile:
-        contextsCount = tempContextsFile.read(4)
-        contextSize = tempContextsFile.read(4)
+    with open(unprunedContextsPath, 'rb') as unprunedContextsFile:
+        contextsCount = unprunedContextsFile.read(4)
+        contextSize = unprunedContextsFile.read(4)
 
         contextsCount = struct.unpack('i', contextsCount)[0]
         contextSize = struct.unpack('i', contextSize)[0]
@@ -229,13 +224,13 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
         format = '{0}i'.format(contextSize) # plus one spot for file index
         bufferSize = (contextSize) * 4
         prunedContextsCount = 0
-        with open(uncompressedPrunedContextsPath, 'wb+') as uncompressedPrunedContexts:
+        with open(contextsPath, 'wb+') as uncompressedPrunedContexts:
             uncompressedPrunedContexts.write(struct.pack('i', 0)) # placeholder for contexts count
             uncompressedPrunedContexts.write(struct.pack('i', contextSize))
 
             contextIndex = 0
             while contextIndex < contextsCount:
-                buffer = tempContextsFile.read(bufferSize)
+                buffer = unprunedContextsFile.read(bufferSize)
 
                 context = struct.unpack(format, buffer)
                 fileIndex = context[0]
@@ -250,11 +245,11 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
                 contextIndex += 1
                 contextsPruned = contextIndex - prunedContextsCount + 1
-                log.progress('Pruning contexts: {0:.3f}%. {1} contexts (2:.3f%) pruned out of {3}.',
+                log.progress('Pruning contexts: {0:.3f}%. {1} contexts ({2:.3f}%) pruned out of {3}.',
                              contextIndex,
                              contextsCount,
                              contextsPruned,
-                             float(contextsPruned) / contextsCount,
+                             float(contextsPruned) * 100 / contextsCount,
                              contextsCount)
 
             log.lineBreak()
@@ -263,33 +258,7 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
             uncompressedPrunedContexts.write(struct.pack('i', prunedContextsCount))
             uncompressedPrunedContexts.flush()
 
-    with open(uncompressedPrunedContextsPath, 'rb') as uncompressedPrunedContexts:
-        contextsCount = uncompressedPrunedContexts.read(4)
-        contextSize = uncompressedPrunedContexts.read(4)
-
-        contextsCount = struct.unpack('i', contextsCount)[0]
-        contextSize = struct.unpack('i', contextSize)[0]
-
-        format = '{0}i'.format(contextSize) # plus one spot for file index
-        bufferSize = (contextSize) * 4
-        with gzip.open(contextsPath, 'wb+') as contextsFile:
-            contextsFile.write(struct.pack('i', contextsCount))
-            contextsFile.write(struct.pack('i', contextSize))
-
-            contextIndex = 0
-            while contextIndex < contextsCount:
-                buffer = uncompressedPrunedContexts.read(bufferSize)
-                contextsFile.write(buffer)
-
-                contextIndex += 1
-                log.progress('Compressing contexts: {0:.3f}%.', contextIndex, contextsCount)
-
-            contextsFile.flush()
-
-        log.lineBreak()
-
-    os.remove(uncompressedContextsPath)
-    os.remove(uncompressedPrunedContextsPath)
+    os.remove(unprunedContextsPath)
 
     parameters.dumpFileVocabulary(fileVocabulary, fileVocabularyPath)
     parameters.dumpWordVocabulary(prunedWordVocabulary, wordVocabularyPath)
@@ -297,11 +266,11 @@ def processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, cont
 
 if __name__ == '__main__':
     inputDirectoryPath = '../data/Wikipedia/Prepared'
-    fileVocabularyPath = '../data/Wikipedia/Processed/file_vocabulary.bin.gz'
-    wordVocabularyPath = '../data/Wikipedia/Processed/word_vocabulary.bin.gz'
-    contextsPath = '../data/Wikipedia/Processed/contexts.bin.gz'
+    fileVocabularyPath = '../data/Wikipedia/Processed/file_vocabulary.bin'
+    wordVocabularyPath = '../data/Wikipedia/Processed/word_vocabulary.bin'
+    contextsPath = '../data/Wikipedia/Processed/contexts.bin'
     contextSize = 7
-    maxVocabularySize = 15000
+    maxVocabularySize = 10000
     whiteListPath = 'res/Tools/white_list.txt'
 
     processData(inputDirectoryPath, fileVocabularyPath, wordVocabularyPath, contextsPath, contextSize, maxVocabularySize)

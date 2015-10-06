@@ -8,9 +8,9 @@ import re
 import vectors
 import pandas
 import os
-#import pylab
 import random
-#from matplotlib import colors
+from matplotlib import colors
+from matplotlib import pyplot as plt
 
 
 rubensteinGoodenoughData = None
@@ -307,7 +307,7 @@ def compareMetrics(metricsHistoryPath, *metricNames):
     metrics = pandas.DataFrame.from_csv(metricsHistoryPath)
     iterations = range(0, len(metrics))
 
-    pylab.grid()
+    plt.grid()
 
     metricScatters = []
     colorNames = colors.cnames.keys()
@@ -315,19 +315,19 @@ def compareMetrics(metricsHistoryPath, *metricNames):
         metric = metrics[metricName]
 
         random.shuffle(colorNames)
-        metricScatter = pylab.scatter(iterations, metric, c=colorNames[metricIndex % len(colorNames)])
+        metricScatter = plt.scatter(iterations, metric, c=colorNames[metricIndex % len(colorNames)])
         metricScatters.append(metricScatter)
 
     metricsFileName = os.path.basename(metricsHistoryPath)
-    pylab.title(metricsFileName)
+    plt.title(metricsFileName)
 
-    pylab.legend(metricScatters, metricNames, scatterpoints=1, loc='lower right', ncol=3, fontsize=8)
+    plt.legend(metricScatters, metricNames, scatterpoints=1, loc='lower right', ncol=3, fontsize=8)
 
-    pylab.show()
+    plt.show()
 
 
 def compareHistories(metricName, *metricsHistoryPaths):
-    pylab.grid()
+    plt.grid()
 
     metricScatters = []
     metricsHistoryNames = []
@@ -339,16 +339,16 @@ def compareHistories(metricName, *metricsHistoryPaths):
         metric = metrics[metricName]
 
         random.shuffle(colorNames)
-        metricScatter = pylab.scatter(iterations, metric, c=colorNames[metricsHistoryIndex % len(colorNames)])
+        metricScatter = plt.scatter(iterations, metric, c=colorNames[metricsHistoryIndex % len(colorNames)])
         metricScatters.append(metricScatter)
 
         metricsHistoryName = os.path.basename(metricsHistoryPath)
         metricsHistoryNames.append(metricsHistoryName)
 
-    pylab.title(metricName)
-    pylab.legend(metricScatters, metricsHistoryNames, scatterpoints=1, loc='lower right', ncol=3, fontsize=8)
+    plt.title(metricName)
+    plt.legend(metricScatters, metricsHistoryNames, scatterpoints=1, loc='lower right', ncol=3, fontsize=8)
 
-    pylab.show()
+    plt.show()
 
 
 def main():

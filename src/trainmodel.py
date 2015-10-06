@@ -128,11 +128,10 @@ def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatc
             model.train(wordIndices, targetWordIndices, miniBatchSize, learningRate, l1Coefficient, l2Coefficient)
 
             metrics = validation.validate(wordVocabulary, model)
-            # customMetrics = {
-            #     'simAB': similarity('A', 'B', wordVocabulary, model),
-            #     'simBC': similarity('B', 'C', wordVocabulary, model)
-            # }
-            #validation.dump(metricsPath, epoch, superBatchIndex, *metrics, **customMetrics)
+            customMetrics = {
+                'simGemJewel': similarity('gem', 'jewel', wordVocabulary, model)
+            }
+            validation.dump(metricsPath, epoch, superBatchIndex, *metrics, **customMetrics)
             validation.dump(metricsPath, epoch, superBatchIndex, *metrics)
 
             if previousTotal < sum(metrics):
@@ -143,14 +142,10 @@ def trainModel(fileVocabulary, wordVocabulary, contextProvider, model, superBatc
             secondsPerEpoch = elapsed / (epoch + 1)
 
             rg, sim353, simLex999, syntRel, sat = metrics
-            # log.progress('Training model: {0:.3f}%. Elapsed: {1}. Epoch: {2}. ({3:.3f} sec/epoch), RG: {4}. Sim353: {5}. SimLex999: {6}. SyntRel: {7}. SAT: {8}. A/B: {9:.3f}. B/C: {10:.3f}',
-            #              epoch + 1, epochs, log.delta(elapsed), epoch, secondsPerEpoch,
-            #              rg, sim353, simLex999, syntRel, sat,
-            #              customMetrics['simAB'],
-            #              customMetrics['simBC'])
-            log.progress('Training model: {0:.3f}%. Elapsed: {1}. Epoch: {2}. ({3:.3f} sec/epoch), RG: {4:.3f}. Sim353: {5:.3f}. SimLex999: {6:.3f}.',
+            log.progress('Training model: {0:.3f}%. Elapsed: {1}. Epoch: {2}. ({3:.3f} sec/epoch), RG: {4}. Sim353: {5}. SimLex999: {6}. SyntRel: {7}. SAT: {8}. Gem/Jewel: {9:.3f}.',
                          epoch + 1, epochs, log.delta(elapsed), epoch, secondsPerEpoch,
-                         rg, sim353, simLex999)
+                         rg, sim353, simLex999, syntRel, sat,
+                         customMetrics['simGemJewel'])
 
     log.lineBreak()
 
@@ -168,9 +163,9 @@ def similarity(left, right, wordVocabulary, embeddings):
 
 
 if __name__ == '__main__':
-    fileVocabularyPath = '../data/Wikipedia/Processed/file_vocabulary.bin.gz'
-    wordVocabularyPath = '../data/Wikipedia/Processed/word_vocabulary.bin.gz'
-    contextsPath = '../data/Wikipedia/Processed/contexts.bin.gz'
+    fileVocabularyPath = '../data/Wikipedia/Processed/file_vocabulary.bin'
+    wordVocabularyPath = '../data/Wikipedia/Processed/word_vocabulary.bin'
+    contextsPath = '../data/Wikipedia/Processed/contexts.bin'
 
     fileVocabulary = parameters.loadFileVocabulary(fileVocabularyPath)
     wordVocabulary = parameters.loadWordVocabulary(wordVocabularyPath, False)
@@ -186,8 +181,8 @@ if __name__ == '__main__':
         wordVocabulary,
         contextProvider,
         model,
-        superBatchSize = 1000000,
-        miniBatchSize = 1000,
+        superBatchSize = 1000,
+        miniBatchSize = 50,
         parametersPath = '../data/Wikipedia/Processed/parameters.bin',
         embeddingsPath = '../data/Wikipedia/Processed/embeddings.bin',
         learningRate = 0.13,
